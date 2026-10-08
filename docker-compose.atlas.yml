@@ -1,0 +1,8 @@
+# Override для работы с MongoDB Atlas вместо локального контейнера.
+# Запуск: docker compose -f docker-compose.yml -f docker-compose.atlas.yml up --build
+# MONGO_URI берётся из корневого .env (строка mongodb+srv://... из Atlas).
+services:
+  app:
+    environment:
+      MONGO_URI: ${MONGO_URI}
+    depends_on: !reset []
