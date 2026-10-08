@@ -49,28 +49,43 @@ function save() {
 // (добавляешь новый URL туннеля вторым, продовый Vercel-URL не удаляешь).
 function patchLocalFiles() {
   const d = buildData();
-  if (!d.frontendTunnel) return;
 
-  const patches = [
-    {
-      file: path.join(__dirname, '..', '.env.local'),
-      regex: /^INSTAGRAM_REDIRECT_URI=.*$/m,
-      replacement: `INSTAGRAM_REDIRECT_URI=${d.oauthRedirectUri}`,
-      label: 'backend/.env.local INSTAGRAM_REDIRECT_URI',
-    },
-    {
+  // Redirect URI и CORS чиним как только поймали фронт-туннель,
+  // VITE_BACKEND_URL — как только поймали бэк-туннель (порядок поимки любой).
+  const patches = [];
+  if (d.frontendTunnel) {
+    patches.push(
+      {
+        file: path.join(__dirname, '..', '.env.local'),
+        regex: /^INSTAGRAM_REDIRECT_URI=.*$/m,
+        replacement: `INSTAGRAM_REDIRECT_URI=${d.oauthRedirectUri}`,
+        label: 'backend/.env.local INSTAGRAM_REDIRECT_URI',
+      },
+      {
+        file: path.join(__dirname, '..', '..', 'frontend', '.env.local'),
+        regex: /^VITE_INSTAGRAM_REDIRECT_URI=.*$/m,
+        replacement: `VITE_INSTAGRAM_REDIRECT_URI=${d.oauthRedirectUri}`,
+        label: 'frontend/.env.local VITE_INSTAGRAM_REDIRECT_URI',
+      },
+      {
+        file: path.join(__dirname, '..', 'app.js'),
+        regex: /const FRONTEND_TUNNEL_URL = ".*";/,
+        replacement: `const FRONTEND_TUNNEL_URL = "${d.frontendTunnel}";`,
+        label: 'backend/app.js FRONTEND_TUNNEL_URL',
+      },
+    );
+  }
+  if (d.backendTunnel) {
+    // Фронт ходит в API через публичный туннель бэка, а не localhost:
+    // иначе Chrome Private Network Access режет fetch как Network Error.
+    patches.push({
       file: path.join(__dirname, '..', '..', 'frontend', '.env.local'),
-      regex: /^VITE_INSTAGRAM_REDIRECT_URI=.*$/m,
-      replacement: `VITE_INSTAGRAM_REDIRECT_URI=${d.oauthRedirectUri}`,
-      label: 'frontend/.env.local VITE_INSTAGRAM_REDIRECT_URI',
-    },
-    {
-      file: path.join(__dirname, '..', 'app.js'),
-      regex: /const FRONTEND_TUNNEL_URL = ".*";/,
-      replacement: `const FRONTEND_TUNNEL_URL = "${d.frontendTunnel}";`,
-      label: 'backend/app.js FRONTEND_TUNNEL_URL',
-    },
-  ];
+      regex: /^VITE_BACKEND_URL=.*$/m,
+      replacement: `VITE_BACKEND_URL=${d.backendTunnel}`,
+      label: 'frontend/.env.local VITE_BACKEND_URL',
+    });
+  }
+  if (patches.length === 0) return;
 
   for (const p of patches) {
     try {

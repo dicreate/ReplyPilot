@@ -82,7 +82,7 @@ app.use(compression());
 // туннеля фронта. Если его нет в списке — браузер режет POST /api/auth/instagram
 // (в Network это выглядит как CORS/preflight error, фронт показывает
 // "Authentication failed"). Quick-туннели меняют URL при рестарте — не забудь обновить.
-const FRONTEND_TUNNEL_URL = "https://transcript-sas-quebec-rotation.trycloudflare.com";
+const FRONTEND_TUNNEL_URL = "https://dig-merchandise-made-weddings.trycloudflare.com";
 const corsOptions = {
   origin:
     process.env.NODE_ENV === "production"
@@ -102,6 +102,15 @@ const corsOptions = {
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "ngrok-skip-browser-warning"],
 };
+
+// Chrome Private Network Access: когда фронт открыт с публичного URL (туннель),
+// а API дергается на localhost, Chrome требует этот заголовок уже в preflight.
+// Стоит ДО cors: preflight отвечает сам cors-middleware и дальше next() не идет.
+// Без заголовка fetch падает как Network Error, хотя curl чистый.
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Private-Network", "true");
+  next();
+});
 
 app.use(cors(corsOptions));
 
