@@ -7,8 +7,10 @@
 //
 // Порты: BACKEND_PORT (по умолч. 5000) и FRONTEND_PORT (по умолч. 5173).
 // Важно: quick-туннели выдают НОВЫЙ URL при каждом запуске —
-// после рестарта обнови URL в настройках Meta (секции 3 и 4),
-// в backend/.env, frontend/.env и FRONTEND_TUNNEL_URL в backend/app.js.
+// скрипт патчит только ЛОКАЛЬНЫЕ файлы (backend/.env.local, frontend/.env.local),
+// продовые backend/.env и frontend/.env он НЕ трогает.
+// После рестарта: в Meta секции 4 добавь новый URL туннеля вторым
+// (секцию 3 - webhook - НЕ трогай, она смотрит на Render).
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -38,26 +40,29 @@ function save() {
   fs.writeFileSync(OUT_FILE, JSON.stringify(buildData(), null, 2) + '\n');
 }
 
-// Патчит локальные файлы под свежие URL туннелей:
-// backend/.env (INSTAGRAM_REDIRECT_URI), frontend/.env (VITE_INSTAGRAM_REDIRECT_URI),
-// backend/app.js (FRONTEND_TUNNEL_URL для CORS).
-// Настройки Meta скрипт тронуть не может — их обновляешь руками из tunnel-urls.json.
+// Патчит только ЛОКАЛЬНЫЕ файлы под свежие URL туннелей:
+// backend/.env.local (INSTAGRAM_REDIRECT_URI), frontend/.env.local
+// (VITE_INSTAGRAM_REDIRECT_URI), backend/app.js (FRONTEND_TUNNEL_URL для CORS).
+// Продовые backend/.env и frontend/.env не трогаем — реальные прод-значения
+// живут в Render/Vercel Dashboard и в деплой эти файлы не едут (git-ignored).
+// Настройки Meta скрипт тронуть не может — секцию 4 обновляешь руками
+// (добавляешь новый URL туннеля вторым, продовый Vercel-URL не удаляешь).
 function patchLocalFiles() {
   const d = buildData();
   if (!d.frontendTunnel) return;
 
   const patches = [
     {
-      file: path.join(__dirname, '..', '.env'),
+      file: path.join(__dirname, '..', '.env.local'),
       regex: /^INSTAGRAM_REDIRECT_URI=.*$/m,
       replacement: `INSTAGRAM_REDIRECT_URI=${d.oauthRedirectUri}`,
-      label: 'backend/.env INSTAGRAM_REDIRECT_URI',
+      label: 'backend/.env.local INSTAGRAM_REDIRECT_URI',
     },
     {
-      file: path.join(__dirname, '..', '..', 'frontend', '.env'),
+      file: path.join(__dirname, '..', '..', 'frontend', '.env.local'),
       regex: /^VITE_INSTAGRAM_REDIRECT_URI=.*$/m,
       replacement: `VITE_INSTAGRAM_REDIRECT_URI=${d.oauthRedirectUri}`,
-      label: 'frontend/.env VITE_INSTAGRAM_REDIRECT_URI',
+      label: 'frontend/.env.local VITE_INSTAGRAM_REDIRECT_URI',
     },
     {
       file: path.join(__dirname, '..', 'app.js'),
@@ -84,8 +89,8 @@ function patchLocalFiles() {
       console.log(`[tunnels] не смог обновить ${p.label}: ${err.message}`);
     }
   }
-  console.log('[tunnels] НЕ ЗАБУДЬ: перезапусти backend и фронт (они читают .env/CORS при старте),');
-  console.log('[tunnels] а в Meta обнови секции 3 и 4 руками (там нужно еще нажать проверку URL).');
+  console.log('[tunnels] НЕ ЗАБУДЬ: перезапусти backend и фронт (они читают .env.local при старте),');
+  console.log('[tunnels] а в Meta в секции 4 добавь новый URL вторым (продовый не удаляй). Секцию 3 не трогай.');
 }
 
 function printBlock() {
@@ -95,7 +100,8 @@ function printBlock() {
   console.log(`Frontend tunnel: ${d.frontendTunnel || '(ждём...)'}`);
   if (d.webhookCallbackUrl) console.log(`\nСекция 3 (Webhooks URL):\n  ${d.webhookCallbackUrl}`);
   if (d.oauthRedirectUri) console.log(`\nСекция 4 (URL переадресации):\n  ${d.oauthRedirectUri}`);
-  console.log(`\nЛокальные файлы (.env, CORS) пропатчены скриптом сам. В Meta секции 3 и 4 обнови руками.`);
+  console.log(`\nЛокальные файлы (.env.local, CORS) пропатчены скриптом сам. Прод (.env, Render, Vercel) не тронут.`);
+  console.log(`В Meta секцию 4 дополни руками (секцию 3 не трогай).`);
   console.log(`Файл: ${OUT_FILE}`);
   console.log('=============================================\n');
 }

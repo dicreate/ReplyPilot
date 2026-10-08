@@ -16,6 +16,10 @@ const complianceRoutes = require("./routes/complianceRoutes.js");
 const webhookRoutes = require("./routes/webhookRoutes.js");
 const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
 
+// Локалка: .env.local приоритетнее .env (его патчит `yarn tunnels`).
+// dotenv не перезаписывает уже выставленные переменные, поэтому сначала local.
+// В проде (Render) обоих файлов нет — значения берутся из dashboard.
+dotenv.config({ path: ".env.local" });
 dotenv.config();
 
 // Validate required environment variables
@@ -78,7 +82,7 @@ app.use(compression());
 // туннеля фронта. Если его нет в списке — браузер режет POST /api/auth/instagram
 // (в Network это выглядит как CORS/preflight error, фронт показывает
 // "Authentication failed"). Quick-туннели меняют URL при рестарте — не забудь обновить.
-const FRONTEND_TUNNEL_URL = "https://circles-relationship-vcr-arabic.trycloudflare.com";
+const FRONTEND_TUNNEL_URL = "https://transcript-sas-quebec-rotation.trycloudflare.com";
 const corsOptions = {
   origin:
     process.env.NODE_ENV === "production"
