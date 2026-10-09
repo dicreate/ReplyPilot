@@ -122,6 +122,15 @@ async function handleMessagingEvent(ownerIgId, messagingEvent) {
   const senderId = messagingEvent.sender?.id;
   if (!senderId) return;
 
+  // Свои echo (is_echo:true, sender = сам бизнес-аккаунт): отголоски наших же
+  // отправок. IGSID не каптурим, триггеры не обрабатываем — иначе текст нашего
+  // же ответа может совпасть с текстовым триггером подписки и запустит
+  // follow-проверку и отправку самим себе.
+  if (messagingEvent.message?.is_echo === true || String(senderId) === String(ownerIgId)) {
+    logger.info(`Skipping own echo event from ${senderId}`);
+    return;
+  }
+
   logger.info(`Captured IGSID ${senderId} for owner ${ownerIgId}`);
   try {
     await IgConversation.findOneAndUpdate(
