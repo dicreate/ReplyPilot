@@ -329,7 +329,9 @@ async function handleCommentEvent(entryId, value) {
     return;
   }
 
-  const keywords = await Keyword.find({ userId: user._id, isActive: true });
+  // Только keywords, применимые к этому посту: глобальные + привязанные к mediaId.
+  // Пустой mediaId ('unknown') матчит только глобальные.
+  const keywords = await Keyword.findForMedia(user._id, mediaId);
 
   const record = new ProcessedComment({
     userId: user._id,

@@ -196,6 +196,26 @@ describe('Keyword Controller', () => {
       expect(response.status).toBe(201);
       expect(response.body.data.keyword).toBe('hello');
     });
+
+    it('should store mediaIds for post-scoped keyword', async () => {
+      const response = await request(app)
+        .post('/keywords')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ keyword: 'scoped', message: 'Test message', mediaIds: ['17906088048591873'] });
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.mediaIds).toEqual(['17906088048591873']);
+    });
+
+    it('should default mediaIds to empty array (global) when not provided', async () => {
+      const response = await request(app)
+        .post('/keywords')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ keyword: 'glob', message: 'Test message' });
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.mediaIds).toEqual([]);
+    });
   });
 
   describe('PUT /keywords/:id', () => {
@@ -265,6 +285,29 @@ describe('Keyword Controller', () => {
       expect(response.status).toBe(409);
       expect(response.body.success).toBe(false);
       expect(response.body.message).toContain('already exists');
+    });
+
+    it('should update post scope when mediaIds provided', async () => {
+      const response = await request(app)
+        .put(`/keywords/${testKeyword._id}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ keyword: 'original', message: 'Original message', mediaIds: ['17906088048591873'] });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.mediaIds).toEqual(['17906088048591873']);
+    });
+
+    it('should preserve post scope when mediaIds not provided (old clients)', async () => {
+      testKeyword.mediaIds = ['17906088048591873'];
+      await testKeyword.save();
+
+      const response = await request(app)
+        .put(`/keywords/${testKeyword._id}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ keyword: 'original', message: 'Changed message' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.mediaIds).toEqual(['17906088048591873']);
     });
   });
 

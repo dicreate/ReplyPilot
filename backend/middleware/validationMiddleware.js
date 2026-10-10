@@ -105,6 +105,38 @@ const validateKeyword = (req, res, next) => {
     }
   }
 
+  // Скоуп постов: опциональный массив ID постов.
+  // Пустой/отсутствует = глобально под любым постом (обратная совместимость).
+  if (req.body.mediaIds !== undefined) {
+    if (!Array.isArray(req.body.mediaIds)) {
+      return res.status(400).json({
+        success: false,
+        message: "mediaIds must be an array of post IDs",
+        errors: { mediaIds: "Must be an array" }
+      });
+    }
+    if (req.body.mediaIds.length > 50) {
+      return res.status(400).json({
+        success: false,
+        message: "Too many posts selected (maximum 50 per keyword)",
+        errors: { mediaIds: "Maximum 50 posts" }
+      });
+    }
+    const cleaned = [];
+    for (const raw of req.body.mediaIds) {
+      const id = String(raw ?? '').trim();
+      if (!/^\d+$/.test(id)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid post ID in mediaIds (must be numeric Instagram media IDs)",
+          errors: { mediaIds: `Invalid post ID: ${id}` }
+        });
+      }
+      if (!cleaned.includes(id)) cleaned.push(id);
+    }
+    req.body.mediaIds = cleaned;
+  }
+
   next();
 };
 

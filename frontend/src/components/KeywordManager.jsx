@@ -12,10 +12,15 @@ const KeywordManager = () => {
     messageForNonFollowers: "",
     enableFollowCheckButton: true,
     followButtonText: "✅ Я подписался",
-    notFollowedYetMessage: ""
+    notFollowedYetMessage: "",
+    mediaIds: []
   };
 
   const [formData, setFormData] = useState(emptyFormData);
+  const [postScope, setPostScope] = useState("all"); // "all" | "specific"
+  const [recentMedia, setRecentMedia] = useState([]);
+  const [mediaLoading, setMediaLoading] = useState(false);
+  const [mediaError, setMediaError] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [placeholders, setPlaceholders] = useState({});
@@ -79,16 +84,22 @@ const KeywordManager = () => {
     setError(null);
 
     try {
+      const payload = {
+        ...formData,
+        // "All posts" = пустой массив (глобально, обратная совместимость)
+        mediaIds: postScope === "specific" ? formData.mediaIds : []
+      };
       let response;
       if (editingId) {
-        response = await api.put(`/api/keywords/${editingId}`, formData);
+        response = await api.put(`/api/keywords/${editingId}`, payload);
       } else {
-        response = await api.post('/api/keywords', formData);
+        response = await api.post('/api/keywords', payload);
       }
 
       if (response.data.success) {
         await fetchKeywords();
         setFormData(emptyFormData);
+        setPostScope("all");
         setEditingId(null);
         setMessagePreview("");
       }
@@ -101,14 +112,18 @@ const KeywordManager = () => {
   };
 
   const handleEdit = (keyword) => {
+    const ids = Array.isArray(keyword.mediaIds) ? keyword.mediaIds : [];
     setFormData({
       keyword: keyword.keyword,
       message: keyword.message,
       messageForNonFollowers: keyword.messageForNonFollowers || "",
       enableFollowCheckButton: keyword.enableFollowCheckButton !== undefined ? keyword.enableFollowCheckButton : true,
       followButtonText: keyword.followButtonText || "✅ Я подписался",
-      notFollowedYetMessage: keyword.notFollowedYetMessage || ""
+      notFollowedYetMessage: keyword.notFollowedYetMessage || "",
+      mediaIds: ids
     });
+    setPostScope(ids.length > 0 ? "specific" : "all");
+    if (ids.length > 0) fetchRecentMedia();
     setEditingId(keyword._id);
     previewMessage(keyword.message);
   };
@@ -130,9 +145,46 @@ const KeywordManager = () => {
 
   const handleCancel = () => {
     setFormData(emptyFormData);
+    setPostScope("all");
     setEditingId(null);
     setError(null);
     setMessagePreview("");
+  };
+
+  const fetchRecentMedia = async () => {
+    setMediaLoading(true);
+    setMediaError(null);
+    try {
+      const response = await api.get('/api/media/recent');
+      if (response.data.success) {
+        setRecentMedia(response.data.data || []);
+      }
+    } catch (err) {
+      console.error("Error fetching recent media:", err);
+      setMediaError(err.response?.data?.message || "Failed to load posts");
+    } finally {
+      setMediaLoading(false);
+    }
+  };
+
+  const handleScopeChange = (scope) => {
+    setPostScope(scope);
+    if (scope === "specific" && recentMedia.length === 0) {
+      fetchRecentMedia();
+    }
+    if (scope === "all") {
+      setFormData({ ...formData, mediaIds: [] });
+    }
+  };
+
+  const toggleMedia = (mediaId) => {
+    const ids = formData.mediaIds || [];
+    setFormData({
+      ...formData,
+      mediaIds: ids.includes(mediaId)
+        ? ids.filter((id) => id !== mediaId)
+        : [...ids, mediaId]
+    });
   };
 
   const handleMessageChange = (value) => {
@@ -232,6 +284,97 @@ const KeywordManager = () => {
                 <div className="border rounded p-2 bg-light">
                   <small>{messagePreview}</small>
                 </div>
+              </div>
+            )}
+          </div>
+
+          <div className="mb-3">
+            <label className="form-label">
+              Posts to watch
+            </label>
+            <div className="form-check">
+              <input
+                className="form-check-input"
+                type="radio"
+                name="postScope"
+                id="scopeAll"
+                checked={postScope === "all"}
+                onChange={() => handleScopeChange("all")}
+              />
+              <label className="form-check-label" htmlFor="scopeAll">
+                All posts <small className="text-muted">(default — works under any post)</small>
+              </label>
+            </div>
+            <div className="form-check">
+              <input
+                className="form-check-input"
+                type="radio"
+                name="postScope"
+                id="scopeSpecific"
+                checked={postScope === "specific"}
+                onChange={() => handleScopeChange("specific")}
+              />
+              <label className="form-check-label" htmlFor="scopeSpecific">
+                Specific posts only <small className="text-muted">(less load — keyword checked only under selected posts)</small>
+              </label>
+            </div>
+
+            {postScope === "specific" && (
+              <div className="mt-2 border rounded p-2 bg-light">
+                {mediaLoading && (
+                  <small className="text-muted">Loading posts...</small>
+                )}
+                {mediaError && (
+                  <div className="alert alert-warning py-1 px-2 mb-2">
+                    <small>{mediaError}</small>
+                    <button type="button" className="btn btn-link btn-sm p-0 ms-2" onClick={fetchRecentMedia}>
+                      Retry
+                    </button>
+                  </div>
+                )}
+                {!mediaLoading && !mediaError && recentMedia.length === 0 && (
+                  <small className="text-muted">No recent posts found</small>
+                )}
+                <div className="row g-2">
+                  {recentMedia.map((media) => (
+                    <div key={media.id} className="col-md-6">
+                      <div
+                        className={`d-flex align-items-center gap-2 border rounded p-1 bg-white ${(formData.mediaIds || []).includes(media.id) ? "border-primary" : ""}`}
+                        style={{ cursor: "pointer" }}
+                        onClick={() => toggleMedia(media.id)}
+                      >
+                        <input
+                          type="checkbox"
+                          className="form-check-input ms-1 flex-shrink-0"
+                          checked={(formData.mediaIds || []).includes(media.id)}
+                          onChange={() => toggleMedia(media.id)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        {(media.media_url || media.thumbnail_url) && (
+                          <img
+                            src={media.media_url || media.thumbnail_url}
+                            alt=""
+                            style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 4 }}
+                          />
+                        )}
+                        <div className="flex-grow-1" style={{ minWidth: 0 }}>
+                          <small className="d-block text-truncate">
+                            {media.caption ? media.caption.substring(0, 60) : `Post ${media.id}`}
+                          </small>
+                          <small className="text-muted">
+                            {media.timestamp ? new Date(media.timestamp).toLocaleDateString() : ""}
+                            {media.comments_count != null && ` • ${media.comments_count} comments`}
+                          </small>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {(formData.mediaIds || []).length > 0 && (
+                  <small className="text-muted d-block mt-2">
+                    Selected: {(formData.mediaIds || []).length} post(s)
+                  </small>
+                )}
               </div>
             )}
           </div>
@@ -340,6 +483,13 @@ const KeywordManager = () => {
                     <div className="flex-grow-1">
                       <h6 className="mb-1">
                         <span className="badge bg-primary me-2">{keyword.keyword}</span>
+                        {Array.isArray(keyword.mediaIds) && keyword.mediaIds.length > 0 ? (
+                          <span className="badge bg-warning text-dark me-2" title={keyword.mediaIds.join(", ")}>
+                            {keyword.mediaIds.length} post(s)
+                          </span>
+                        ) : (
+                          <span className="badge bg-secondary me-2">All posts</span>
+                        )}
                         {keyword.matchCount > 0 && (
                           <small className="text-muted">({keyword.matchCount} matches)</small>
                         )}

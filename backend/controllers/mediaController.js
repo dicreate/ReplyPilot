@@ -81,8 +81,8 @@ exports.processMediaComments = async (req, res) => {
       });
     }
 
-    // Get user's keywords
-    const keywords = await Keyword.find({ userId, isActive: true });
+    // Keywords, применимые к этому посту: глобальные + привязанные к mediaId
+    const keywords = await Keyword.findForMedia(userId, mediaId);
     if (keywords.length === 0) {
       return res.status(200).json({
         success: true,

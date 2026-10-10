@@ -31,7 +31,8 @@ exports.addKeyword = async (req, res) => {
       messageForNonFollowers,
       enableFollowCheckButton,
       followButtonText,
-      notFollowedYetMessage
+      notFollowedYetMessage,
+      mediaIds
     } = req.body;
     const userId = req.user.id;
 
@@ -80,7 +81,9 @@ exports.addKeyword = async (req, res) => {
       messageForNonFollowers: altMessage,
       enableFollowCheckButton: enableFollowCheckButton !== undefined ? enableFollowCheckButton : true,
       followButtonText: typeof followButtonText === 'string' && followButtonText.trim() ? followButtonText.trim() : '✅ Я подписался',
-      notFollowedYetMessage: (notFollowedYetMessage || '').trim()
+      notFollowedYetMessage: (notFollowedYetMessage || '').trim(),
+      // Пустой массив = глобально под любым постом (дефолт для обратной совместимости)
+      mediaIds: Array.isArray(mediaIds) ? mediaIds : []
     });
 
     await newKeyword.save();
@@ -114,7 +117,8 @@ exports.updateKeyword = async (req, res) => {
       messageForNonFollowers,
       enableFollowCheckButton,
       followButtonText,
-      notFollowedYetMessage
+      notFollowedYetMessage,
+      mediaIds
     } = req.body;
     const userId = req.user.id;
 
@@ -177,6 +181,10 @@ exports.updateKeyword = async (req, res) => {
     }
     if (notFollowedYetMessage !== undefined) {
       existingKeyword.notFollowedYetMessage = notFollowedYetMessage.trim();
+    }
+    // Скоуп перезаписываем только если поле передано — старые клиенты без mediaIds не затирают привязку
+    if (mediaIds !== undefined) {
+      existingKeyword.mediaIds = Array.isArray(mediaIds) ? mediaIds : [];
     }
     existingKeyword.updatedAt = new Date();
 

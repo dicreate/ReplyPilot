@@ -33,6 +33,7 @@ const createIndexes = async () => {
 
     // Keyword indexes (remove duplicate from schema)
     await safeCreateIndex(Keyword.collection, { userId: 1, isActive: 1 });
+    await safeCreateIndex(Keyword.collection, { userId: 1, isActive: 1, mediaIds: 1 });
     await safeCreateIndex(Keyword.collection, { matchCount: -1 });
     await safeCreateIndex(Keyword.collection, { lastUsed: -1 });
     await safeCreateIndex(Keyword.collection, { createdAt: -1 });

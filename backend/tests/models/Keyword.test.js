@@ -273,4 +273,37 @@ describe('Keyword Model', () => {
       expect(keywords[1].keyword).toBe('thanks');
     });
   });
+
+  describe('findForMedia (post scoping)', () => {
+    const POST_A = '17906088048591873';
+    const POST_B = '18059718371551555';
+
+    beforeEach(async () => {
+      // Глобальный (mediaIds по умолчанию пустой)
+      await Keyword.create({ userId: testUser._id, keyword: 'global', message: 'G' });
+      // Легаси-запись без поля mediaIds вообще (старые документы в прод-БД)
+      await Keyword.collection.insertOne({ userId: testUser._id, keyword: 'legacy', message: 'L', isActive: true });
+      await Keyword.create({ userId: testUser._id, keyword: 'scoped-a', message: 'A', mediaIds: [POST_A] });
+      await Keyword.create({ userId: testUser._id, keyword: 'scoped-b', message: 'B', mediaIds: [POST_B] });
+      await Keyword.create({ userId: testUser._id, keyword: 'scoped-off', message: 'X', mediaIds: [POST_A], isActive: false });
+    });
+
+    const names = (docs) => docs.map((k) => k.keyword).sort();
+
+    it('should return global + legacy + matching scoped keywords for a post', async () => {
+      expect(names(await Keyword.findForMedia(testUser._id, POST_A))).toEqual(['global', 'legacy', 'scoped-a']);
+      expect(names(await Keyword.findForMedia(testUser._id, POST_B))).toEqual(['global', 'legacy', 'scoped-b']);
+    });
+
+    it('should return only global keywords for unknown media', async () => {
+      expect(names(await Keyword.findForMedia(testUser._id, 'unknown'))).toEqual(['global', 'legacy']);
+    });
+
+    it('should not return other users keywords', async () => {
+      const other = new User({ facebookId: 'fb-999', instagramId: '999', accessToken: 't', username: 'other' });
+      await other.save();
+      await Keyword.create({ userId: other._id, keyword: 'other-global', message: 'O' });
+      expect(names(await Keyword.findForMedia(testUser._id, POST_A))).toEqual(['global', 'legacy', 'scoped-a']);
+    });
+  });
 });
