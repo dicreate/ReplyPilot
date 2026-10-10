@@ -49,15 +49,37 @@ exports.instagramLogin = async (req, res) => {
 
     // Fetch user profile and Instagram business accounts.
     // Токен Instagram-платформы: профиль тянем из graph.instagram.com.
+    // ВАЖНО #1: свежеобменянный токен первые секунды может давать 400
+    // (propagation на стороне Meta) — стучим в /me с ретраями.
+    // ВАЖНО #2: ID берем СТРОКОЙ из /me. 17-значные ID не влезают в точность
+    // JS Number, а user_id из ответа обмена axios уже распарсил как Number —
+    // последний разряд может быть обрезан (было: ...773 -> ...772 в БД,
+    // и private reply падал с "Object does not exist").
     let userProfile = null;
     let instagramAccounts = [];
     try {
+      let igData = null;
+      for (let attempt = 1; attempt <= 4 && !igData; attempt++) {
+        try {
+          if (attempt > 1) await new Promise((r) => setTimeout(r, 2000));
+          const igRes = await axios.get(`https://graph.instagram.com/me?fields=id,username&access_token=${access_token}`);
+          igData = igRes.data;
+        } catch (e) {
+          logger.warn(`Instagram profile attempt ${attempt}/4 failed: ${e.response?.status || e.message}`);
+        }
+      }
       try {
-        const igProfile = await axios.get(`https://graph.instagram.com/me?fields=id,username&access_token=${access_token}`);
-        userProfile = { id: user_id || igProfile.data.id, name: igProfile.data.username };
-      } catch (igErr) {
-        const profileResponse = await axios.get(`https://graph.facebook.com/me?fields=id,name&access_token=${access_token}`);
-        userProfile = profileResponse.data;
+        // ID берем только если он реально есть (String(undefined) нам не нужен).
+        if (igData && igData.id != null) {
+          userProfile = { id: String(igData.id), name: igData.username };
+        } else {
+          const profileResponse = await axios.get(`https://graph.facebook.com/me?fields=id,name&access_token=${access_token}`);
+          if (profileResponse.data && profileResponse.data.id != null) {
+            userProfile = { id: String(profileResponse.data.id), name: profileResponse.data.name };
+          }
+        }
+      } catch (fbErr) {
+        logger.warn(`Facebook profile fallback failed: ${fbErr.response?.status || fbErr.message}`);
       }
       
       // Get user's Facebook Pages
@@ -83,7 +105,18 @@ exports.instagramLogin = async (req, res) => {
     // Атомарный upsert вместо findOne + save: фронт может прислать callback
     // дважды (напр. двойной эффект StrictMode), и два параллельных save
     // падали со вторым E11000 duplicate key на уникальном индексе.
-    const primaryKey = user_id || userProfile?.id;
+    // Строковый ключ. Приоритет — /me (там ID всегда строка). user_id из обмена
+    // берем только если пришел строкой: число уже может быть обрезано парсером
+    // (17-значные ID мимо точности Number: было ...773 -> ...772 в БД,
+    // и private reply падал с "Object does not exist").
+    const exchangeId = typeof user_id === 'string' ? user_id : null;
+    if (user_id != null && typeof user_id !== 'string') {
+      logger.warn('Exchange user_id is not a string, ignoring it for primary key (precision risk)');
+    }
+    const primaryKey = userProfile?.id || exchangeId || (user_id != null ? String(user_id) : null);
+    if (!userProfile?.id && !exchangeId) {
+      logger.warn('No string profile id available, falling back to exchange user_id (may be precision-damaged)');
+    }
     const updateFields = {
       accessToken: access_token,
       instagramAccounts: instagramAccounts,
