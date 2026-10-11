@@ -266,20 +266,30 @@ exports.processMediaComments = async (req, res) => {
 exports.getProcessingHistory = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { page = 1, limit = 20 } = req.query;
+    const { page = 1, limit = 20, failed } = req.query;
 
     const skip = (page - 1) * limit;
 
-    const history = await ProcessedComment.find({ userId })
+    // ?failed=true — только ошибки отправки (не ушло + есть текст ошибки).
+    // Комменты без совпадения (dmSent=false без errorMessage) сюда не попадают.
+    const filter = { userId };
+    if (String(failed).toLowerCase() === 'true') {
+      filter.dmSent = false;
+      filter.errorMessage = { $exists: true, $nin: [null, ''] };
+    }
+
+    const history = await ProcessedComment.find(filter)
       .sort({ processedAt: -1 })
       .skip(skip)
       .limit(parseInt(limit))
-      .select('mediaId commentAuthor commentText keywordMatched dmSent processedAt errorMessage');
+      .select('commentId mediaId commentAuthor commentText keywordMatched dmSent processedAt errorMessage');
 
-    const total = await ProcessedComment.countDocuments({ userId });
+    const total = await ProcessedComment.countDocuments(filter);
 
     // Retention-панель: точный момент последнего прогона TTL Mongo не отдает,
     // показываем состояние хранилища (всего + самая старая запись + политика).
+    // total всего хранилища считаем отдельно — при ?failed=true total выше уже фильтр.
+    const totalAll = await ProcessedComment.countDocuments({ userId });
     const oldest = await ProcessedComment.findOne({ userId })
       .sort({ processedAt: 1 })
       .select('processedAt');
@@ -295,7 +305,7 @@ exports.getProcessingHistory = async (req, res) => {
           pages: Math.ceil(total / limit)
         },
         storage: {
-          total,
+          total: totalAll,
           oldestProcessedAt: oldest?.processedAt || null,
           ttlDays: ProcessedComment.PROCESSED_COMMENT_TTL_DAYS
         }

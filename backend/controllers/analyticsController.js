@@ -61,9 +61,11 @@ exports.getAnalyticsSummary = async (req, res) => {
       daysWithActivity: 0
     };
 
-    // Calculate success rate
-    const successRate = summary.totalCommentsProcessed > 0 
-      ? ((summary.totalDmsSent / summary.totalCommentsProcessed) * 100).toFixed(1)
+    // Success rate = доля совпадений, по которым ушел ответ.
+    // Делить на все обработанные комменты неверно: комменты без совпадения
+    // отвечать не требуют и топили метрику (было 17/32=53.1% вместо 17/19=89.5%).
+    const successRate = summary.totalKeywordMatches > 0
+      ? ((summary.totalDmsSent / summary.totalKeywordMatches) * 100).toFixed(1)
       : 0;
 
     const result = {

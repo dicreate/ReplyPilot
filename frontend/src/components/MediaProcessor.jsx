@@ -10,6 +10,7 @@ const MediaProcessor = () => {
   const [loadingMedia, setLoadingMedia] = useState(true);
   const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [showErrorsOnly, setShowErrorsOnly] = useState(false);
   const [storageInfo, setStorageInfo] = useState(null);
   const [sincePreset, setSincePreset] = useState("48"); // 48 default | all | 24 | 168 | 720 | custom
   const [customHours, setCustomHours] = useState("");
@@ -37,11 +38,11 @@ const MediaProcessor = () => {
     }
   };
 
-  const fetchProcessingHistory = async () => {
+  const fetchProcessingHistory = async (errorsOnly = showErrorsOnly) => {
     try {
       const token = localStorage.getItem("token");
       const response = await axios.get(
-        `${import.meta.env.VITE_BACKEND_URL}/api/media/history?limit=10`,
+        `${import.meta.env.VITE_BACKEND_URL}/api/media/history?limit=10${errorsOnly ? "&failed=true" : ""}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -52,6 +53,12 @@ const MediaProcessor = () => {
     } catch (err) {
       console.error("Error fetching processing history:", err);
     }
+  };
+
+  const toggleErrorsOnly = () => {
+    const next = !showErrorsOnly;
+    setShowErrorsOnly(next);
+    fetchProcessingHistory(next);
   };
 
   const processMedia = async (selectedMediaId = null) => {
@@ -387,6 +394,19 @@ const MediaProcessor = () => {
           )}
 
           {showHistory && (
+            <div>
+              <div className="form-check mb-2">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  id="errorsOnly"
+                  checked={showErrorsOnly}
+                  onChange={toggleErrorsOnly}
+                />
+                <label className="form-check-label small" htmlFor="errorsOnly">
+                  Show errors only
+                </label>
+              </div>
             <div className="table-responsive">
               {history.length === 0 ? (
                 <p className="text-muted">No processing history yet</p>
@@ -400,6 +420,7 @@ const MediaProcessor = () => {
                       <th>Comment</th>
                       <th>Keyword</th>
                       <th>DM Sent</th>
+                      {showErrorsOnly && <th>Error</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -425,11 +446,15 @@ const MediaProcessor = () => {
                             <span className="badge bg-secondary">-</span>
                           )}
                         </td>
+                        {showErrorsOnly && (
+                          <td className="small text-danger">{item.errorMessage}</td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
                 </table>
               )}
+            </div>
             </div>
           )}
         </div>

@@ -131,8 +131,7 @@ describe('Media Controller processMediaComments sinceHours', () => {
     }
   });
 
-  describe('GET /media/history storage info', () => {
-    it('should return retention panel (total, oldest, ttlDays)', async () => {
+  describe('GET /media/history storage info', () => {    it('should return retention panel (total, oldest, ttlDays)', async () => {
       await ProcessedComment.create([
         {
           userId: testUser._id,
@@ -162,6 +161,38 @@ describe('Media Controller processMediaComments sinceHours', () => {
       expect(new Date(response.body.data.storage.oldestProcessedAt).getTime())
         .toBeLessThan(Date.now() - 9 * 24 * 3600 * 1000);
       expect(response.body.data.storage.ttlDays).toBe(90);
+    });
+
+    it('should return only failed sends with ?failed=true', async () => {
+      await ProcessedComment.create([
+        {
+          userId: testUser._id, commentId: 'e1', mediaId: MEDIA_ID,
+          commentText: 'boom', commentAuthor: 'a', commentAuthorId: '1',
+          keywordMatched: 'hello', dmSent: false, errorMessage: 'An unknown error has occurred.'
+        },
+        {
+          userId: testUser._id, commentId: 'e2', mediaId: MEDIA_ID,
+          commentText: 'ok', commentAuthor: 'b', commentAuthorId: '2',
+          keywordMatched: 'hello', dmSent: true
+        },
+        {
+          userId: testUser._id, commentId: 'e3', mediaId: MEDIA_ID,
+          commentText: 'no match', commentAuthor: 'c', commentAuthorId: '3',
+          dmSent: false
+        }
+      ]);
+
+      const response = await request(app)
+        .get('/media/history?failed=true')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.history).toHaveLength(1);
+      expect(response.body.data.history[0].commentId).toBe('e1');
+      expect(response.body.data.history[0].errorMessage).toBe('An unknown error has occurred.');
+      // Пагинация по фильтру, retention — по всему хранилищу
+      expect(response.body.data.pagination.total).toBe(1);
+      expect(response.body.data.storage.total).toBe(3);
     });
   });
 });
