@@ -244,7 +244,10 @@ const MediaProcessor = () => {
                 <div key={media.id} className="col-md-4 mb-3">
                   <div className="card">
                     <img
-                      src={media.media_url || media.thumbnail_url}
+                      // Рилсы/видео: media_url — это mp4 (десктоп его в <img> не покажет,
+                      // а Safari еще и воспроизводит). Превью берем из thumbnail_url,
+                      // у фото его нет — там fallback на media_url.
+                      src={media.thumbnail_url || media.media_url}
                       className="card-img-top"
                       alt="Post"
                       style={{ height: "150px", objectFit: "cover" }}
