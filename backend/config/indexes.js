@@ -46,6 +46,8 @@ const createIndexes = async () => {
     await safeCreateIndex(ProcessedComment.collection, { userId: 1, processedAt: -1 });
     await safeCreateIndex(ProcessedComment.collection, { keywordMatched: 1 });
     await safeCreateIndex(ProcessedComment.collection, { dmSent: 1 });
+    // TTL 90 дней на историю/дедуп обработанных комментов
+    await safeCreateIndex(ProcessedComment.collection, { processedAt: 1 }, { expireAfterSeconds: 90 * 24 * 60 * 60 });
 
     // Compound indexes for complex queries
     await safeCreateIndex(ProcessedComment.collection, { 

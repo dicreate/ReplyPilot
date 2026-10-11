@@ -225,7 +225,34 @@ class InstagramService {
   // commentId: ID комментария — обязателен для private reply.
   // ownerIgId: ID бизнес-аккаунта — для поиска IGSID-маппинга.
   // quickReplies: массив кнопок быстрого ответа (Meta Graph API)
-  async sendDirectMessage(recipientId, message, accessToken, ownerIgId, commentId = null, quickReplies = null) {
+  // Лимит возраста коммента для DM-fallback (обычный DM без привязки к комменту
+  // на старых комментах выглядит как спам; после TTL-протухания записей дедупа
+  // именно fallback плодит дубли — private reply на тот же коммент Meta режет).
+  // Private reply лимита не имеет. Env FALLBACK_MAX_COMMENT_AGE_HOURS, дефолт 48.
+  getFallbackMaxAgeMs() {
+    const hours = Number(process.env.FALLBACK_MAX_COMMENT_AGE_HOURS);
+    return (Number.isFinite(hours) && hours > 0 ? hours : 48) * 3600 * 1000;
+  }
+
+  // commentTimestamp: ISO-строка (Graph API), Date или epoch (сек/мс).
+  // null/нераспознанное = возраст неизвестен → разрешаем (fail-open),
+  // чтобы не ломать чистые DM-потоки без commentId.
+  isFallbackAllowed(commentTimestamp) {
+    if (commentTimestamp == null) return true;
+    let ts = null;
+    if (commentTimestamp instanceof Date) {
+      ts = commentTimestamp.getTime();
+    } else if (typeof commentTimestamp === 'number') {
+      ts = commentTimestamp < 1e12 ? commentTimestamp * 1000 : commentTimestamp;
+    } else {
+      const parsed = Date.parse(commentTimestamp);
+      ts = Number.isNaN(parsed) ? null : parsed;
+    }
+    if (ts == null) return true;
+    return Date.now() - ts <= this.getFallbackMaxAgeMs();
+  }
+
+  async sendDirectMessage(recipientId, message, accessToken, ownerIgId, commentId = null, quickReplies = null, commentTimestamp = null) {
     await this.waitForRateLimit();
 
     // --- 1. PRIMARY: Private Reply на комментарий ---
@@ -236,6 +263,16 @@ class InstagramService {
         return replyResult;
       }
       logger.warn(`Private reply failed for comment ${commentId}: ${replyResult.error}`);
+      // Старый коммент + упавший private reply: fallback почти наверняка
+      // означает дубль (ответ уже уходил раньше, запись дедупа протухла по TTL).
+      if (!this.isFallbackAllowed(commentTimestamp)) {
+        logger.warn(`DM fallback skipped for comment ${commentId}: comment is older than fallback window`);
+        return {
+          success: false,
+          error: `${replyResult.error}; DM fallback skipped (comment older than fallback window)`,
+          status: replyResult.status,
+        };
+      }
       // Продолжаем к fallback
     }
 

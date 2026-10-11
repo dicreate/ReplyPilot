@@ -10,6 +10,9 @@ const MediaProcessor = () => {
   const [loadingMedia, setLoadingMedia] = useState(true);
   const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [storageInfo, setStorageInfo] = useState(null);
+  const [sincePreset, setSincePreset] = useState("48"); // 48 default | all | 24 | 168 | 720 | custom
+  const [customHours, setCustomHours] = useState("");
 
   useEffect(() => {
     fetchRecentMedia();
@@ -44,6 +47,7 @@ const MediaProcessor = () => {
 
       if (response.data.success) {
         setHistory(response.data.data.history);
+        setStorageInfo(response.data.data.storage || null);
       }
     } catch (err) {
       console.error("Error fetching processing history:", err);
@@ -58,6 +62,18 @@ const MediaProcessor = () => {
       return;
     }
 
+    // Возрастной фильтр: часы назад; all = за всё время (поле не шлем)
+    let sinceHours = null;
+    if (sincePreset === "custom") {
+      sinceHours = Number(customHours);
+      if (!Number.isFinite(sinceHours) || sinceHours <= 0) {
+        setError("Custom period must be a positive number of hours");
+        return;
+      }
+    } else if (sincePreset !== "all") {
+      sinceHours = Number(sincePreset);
+    }
+
     setProcessing(true);
     setError(null);
     setResults(null);
@@ -66,7 +82,7 @@ const MediaProcessor = () => {
       const token = localStorage.getItem("token");
       const response = await axios.post(
         `${import.meta.env.VITE_BACKEND_URL}/api/media/process/${targetMediaId}`,
-        {},
+        sinceHours !== null ? { sinceHours } : {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -162,6 +178,47 @@ const MediaProcessor = () => {
           </div>
         </div>
 
+        {/* Age filter */}
+        <div className="mb-4">
+          <label htmlFor="sincePreset" className="form-label">
+            Comments from
+          </label>
+          <div className="d-flex gap-2 align-items-center">
+            <select
+              id="sincePreset"
+              className="form-select"
+              style={{ maxWidth: 220 }}
+              value={sincePreset}
+              onChange={(e) => setSincePreset(e.target.value)}
+              disabled={processing}
+            >
+              <option value="all">All time</option>
+              <option value="24">Last 24 hours</option>
+              <option value="48">Last 2 days</option>
+              <option value="168">Last 7 days</option>
+              <option value="720">Last 30 days</option>
+              <option value="custom">Custom...</option>
+            </select>
+            {sincePreset === "custom" && (
+              <div className="input-group" style={{ maxWidth: 200 }}>
+                <input
+                  type="number"
+                  min="1"
+                  className="form-control"
+                  placeholder="Hours"
+                  value={customHours}
+                  onChange={(e) => setCustomHours(e.target.value)}
+                  disabled={processing}
+                />
+                <span className="input-group-text">h</span>
+              </div>
+            )}
+          </div>
+          <div className="form-text">
+            Only comments newer than the selected period are processed. Older ones are skipped (and can be picked up later with a wider period).
+          </div>
+        </div>
+
         {/* Recent Media Posts */}
         <div className="mb-4">
           <h6>Your Recent Posts</h6>
@@ -251,6 +308,12 @@ const MediaProcessor = () => {
               </div>
             </div>
 
+            {results.skippedByAge > 0 && (
+              <div className="alert alert-info mt-3">
+                {results.skippedByAge} comment(s) skipped by age filter. Use a wider period to process them.
+              </div>
+            )}
+
             {results.errors > 0 && (
               <div className="alert alert-warning mt-3">
                 <strong>Warning:</strong> {results.errors} error(s) occurred during processing.
@@ -310,6 +373,18 @@ const MediaProcessor = () => {
               {showHistory ? "Hide" : "Show"} History
             </button>
           </div>
+
+          {storageInfo && (
+            <p className="text-muted small mb-2">
+              Stored: {storageInfo.total} comment(s)
+              {storageInfo.oldestProcessedAt && (
+                <> • oldest: {new Date(storageInfo.oldestProcessedAt).toLocaleDateString()}</>
+              )}
+              {storageInfo.ttlDays && (
+                <> • auto-delete after {storageInfo.ttlDays} days</>
+              )}
+            </p>
+          )}
 
           {showHistory && (
             <div className="table-responsive">

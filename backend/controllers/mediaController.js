@@ -21,6 +21,20 @@ exports.processMediaComments = async (req, res) => {
       });
     }
 
+    // Возрастной фильтр комментов: sinceHours (число, часы назад).
+    // Отсутствует = за всё время (обратная совместимость).
+    let cutoff = null;
+    if (req.body?.sinceHours !== undefined && req.body?.sinceHours !== null && req.body.sinceHours !== '') {
+      const sinceHours = Number(req.body.sinceHours);
+      if (!Number.isFinite(sinceHours) || sinceHours <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid sinceHours: must be a positive number of hours"
+        });
+      }
+      cutoff = Date.now() - sinceHours * 3600 * 1000;
+    }
+
     // Get user's access token
     const user = await User.findById(userId);
     if (!user || !user.accessToken) {
@@ -104,6 +118,7 @@ exports.processMediaComments = async (req, res) => {
       keywordMatches: 0,
       dmsSent: 0,
       errors: 0,
+      skippedByAge: 0,
       processedComments: []
     };
 
@@ -113,6 +128,16 @@ exports.processMediaComments = async (req, res) => {
         const existingComment = await ProcessedComment.findOne({ commentId: comment.id });
         if (existingComment) {
           continue; // Skip already processed comments
+        }
+
+        // Возрастной фильтр: старше cutoff — скипаем БЕЗ записи,
+        // чтобы более широкий прогон потом их подобрал
+        if (cutoff !== null && comment.timestamp) {
+          const ts = new Date(comment.timestamp).getTime();
+          if (Number.isFinite(ts) && ts < cutoff) {
+            results.skippedByAge++;
+            continue;
+          }
         }
 
         // ВАЖНО: в Instagram Platform username верхнего уровня нет —
@@ -173,7 +198,8 @@ exports.processMediaComments = async (req, res) => {
               user.accessToken,
               user.instagramId,
               comment.id,
-              resolved?.quickReplies
+              resolved?.quickReplies,
+              comment.timestamp
             );
 
             if (dmResult.success) {
@@ -220,7 +246,8 @@ exports.processMediaComments = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: `Processed ${results.newComments} new comments. ${results.dmsSent} DMs sent.`,
+      message: `Processed ${results.newComments} new comments. ${results.dmsSent} DMs sent.` +
+        (results.skippedByAge > 0 ? ` ${results.skippedByAge} skipped by age filter.` : ''),
       data: results
     });
 
@@ -251,6 +278,12 @@ exports.getProcessingHistory = async (req, res) => {
 
     const total = await ProcessedComment.countDocuments({ userId });
 
+    // Retention-панель: точный момент последнего прогона TTL Mongo не отдает,
+    // показываем состояние хранилища (всего + самая старая запись + политика).
+    const oldest = await ProcessedComment.findOne({ userId })
+      .sort({ processedAt: 1 })
+      .select('processedAt');
+
     res.status(200).json({
       success: true,
       data: {
@@ -260,6 +293,11 @@ exports.getProcessingHistory = async (req, res) => {
           limit: parseInt(limit),
           total,
           pages: Math.ceil(total / limit)
+        },
+        storage: {
+          total,
+          oldestProcessedAt: oldest?.processedAt || null,
+          ttlDays: ProcessedComment.PROCESSED_COMMENT_TTL_DAYS
         }
       }
     });

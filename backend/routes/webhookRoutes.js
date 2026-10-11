@@ -96,7 +96,7 @@ router.post('/instagram', async (req, res) => {
             if (change.field === 'comments') {
               logger.info(`New comment event: ${JSON.stringify(change.value)}`);
               try {
-                await handleCommentEvent(entry.id, change.value);
+                await handleCommentEvent(entry.id, change.value, entry.time);
               } catch (eventError) {
                 logger.error(`Comment event handling failed: ${eventError.message}`);
               }
@@ -283,7 +283,7 @@ async function processFollowVerification(ownerIgId, senderId, keywordId = null) 
  * Обработка входящего комментария с вебхука: дедуп, мэтчинг keyword, DM.
  * Тот же результат, что и ручной Process, но в реальном времени.
  */
-async function handleCommentEvent(entryId, value) {
+async function handleCommentEvent(entryId, value, entryTime = null) {
   const commentId = value?.id;
   const text = value?.text || '';
   const from = value?.from || {};
@@ -372,7 +372,8 @@ async function handleCommentEvent(entryId, value) {
         user.accessToken,
         user.instagramId,
         commentId,
-        resolvedQuickReplies
+        resolvedQuickReplies,
+        entryTime
       );
 
       if (dmResult.success) {
