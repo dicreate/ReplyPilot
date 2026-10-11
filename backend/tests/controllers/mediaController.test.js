@@ -6,6 +6,7 @@ const instagramService = require('../../services/instagramService');
 const User = require('../../models/User');
 const Keyword = require('../../models/Keyword');
 const ProcessedComment = require('../../models/ProcessedComment');
+const Analytics = require('../../models/Analytics');
 
 jest.mock('../../services/instagramService');
 jest.mock('../../utils/logger', () => ({
@@ -161,6 +162,20 @@ describe('Media Controller processMediaComments sinceHours', () => {
       expect(new Date(response.body.data.storage.oldestProcessedAt).getTime())
         .toBeLessThan(Date.now() - 9 * 24 * 3600 * 1000);
       expect(response.body.data.storage.ttlDays).toBe(90);
+    });
+
+    it('should return all-time error total from analytics (more than live records)', async () => {
+      await Analytics.create([
+        { userId: testUser._id, date: new Date('2026-09-01'), errorCount: 7 },
+        { userId: testUser._id, date: new Date('2026-10-01'), errorCount: 4 }
+      ]);
+
+      const response = await request(app)
+        .get('/media/history')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.storage.totalErrorsAllTime).toBe(11);
     });
 
     it('should return only failed sends with ?failed=true', async () => {

@@ -390,6 +390,9 @@ const MediaProcessor = () => {
               {storageInfo.ttlDays && (
                 <> • auto-delete after {storageInfo.ttlDays} days</>
               )}
+              {!!storageInfo.totalErrorsAllTime && (
+                <> • errors total (all time): {storageInfo.totalErrorsAllTime}</>
+              )}
             </p>
           )}
 

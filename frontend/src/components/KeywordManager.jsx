@@ -479,8 +479,8 @@ const KeywordManager = () => {
             <div className="list-group">
               {keywords.map((keyword) => (
                 <div key={keyword._id} className="list-group-item">
-                  <div className="d-flex justify-content-between align-items-start">
-                    <div className="flex-grow-1">
+                  <div className="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                    <div className="flex-grow-1" style={{ minWidth: 0 }}>
                       <h6 className="mb-1">
                         <span className="badge bg-primary me-2">{keyword.keyword}</span>
                         {Array.isArray(keyword.mediaIds) && keyword.mediaIds.length > 0 ? (
@@ -494,11 +494,11 @@ const KeywordManager = () => {
                           <small className="text-muted">({keyword.matchCount} matches)</small>
                         )}
                       </h6>
-                      <p className="mb-1">{keyword.message}</p>
+                      <p className="mb-1 text-break">{keyword.message}</p>
                       {keyword.messageForNonFollowers && (
                         <p className="mb-1">
                           <small className="text-muted">Non-followers: </small>
-                          <small>{keyword.messageForNonFollowers}</small>
+                          <small className="text-break">{keyword.messageForNonFollowers}</small>
                           {keyword.enableFollowCheckButton !== false && (
                             <span className="badge bg-info text-dark ms-2">
                               Button: {keyword.followButtonText || "✅ Я подписался"}
@@ -513,7 +513,7 @@ const KeywordManager = () => {
                         )}
                       </small>
                     </div>
-                    <div className="btn-group btn-group-sm">
+                    <div className="btn-group btn-group-sm flex-shrink-0" role="group">
                       <button
                         className="btn btn-outline-primary"
                         onClick={() => handleEdit(keyword)}

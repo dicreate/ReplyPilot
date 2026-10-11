@@ -1,5 +1,5 @@
-const User = require("../models/User");
-const Keyword = require("../models/Keyword");
+const mongoose = require("mongoose");
+const User = require("../models/User");const Keyword = require("../models/Keyword");
 const ProcessedComment = require("../models/ProcessedComment");
 const Analytics = require("../models/Analytics");
 const logger = require("../utils/logger");
@@ -294,6 +294,14 @@ exports.getProcessingHistory = async (req, res) => {
       .sort({ processedAt: 1 })
       .select('processedAt');
 
+    // Исторический тотал ошибок из накопительной аналитики: живых записей
+    // с errorMessage может быть меньше (повторы не плодят записи, успешный
+    // ретрай перезаписывает ошибку), а счетчик помнит все попытки.
+    const errorAgg = await Analytics.aggregate([
+      { $match: { userId: new mongoose.Types.ObjectId(userId) } },
+      { $group: { _id: null, total: { $sum: '$errorCount' } } }
+    ]);
+
     res.status(200).json({
       success: true,
       data: {
@@ -307,7 +315,8 @@ exports.getProcessingHistory = async (req, res) => {
         storage: {
           total: totalAll,
           oldestProcessedAt: oldest?.processedAt || null,
-          ttlDays: ProcessedComment.PROCESSED_COMMENT_TTL_DAYS
+          ttlDays: ProcessedComment.PROCESSED_COMMENT_TTL_DAYS,
+          totalErrorsAllTime: errorAgg[0]?.total || 0
         }
       }
     });
