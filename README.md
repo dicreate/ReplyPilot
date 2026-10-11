@@ -1,7 +1,7 @@
-# Instagram Auto-Reply Automation Tool
+# ReplyPilot - Comment-to-DM Automation Tool
 
 ## 📌 Introduction
-The **Instagram Auto-Reply Automation Tool** is a full-stack web application designed to streamline interactions on Instagram by automatically responding to comments based on predefined keywords. This tool is particularly useful for businesses, influencers, and content creators who want to maintain engagement with their audience while reducing manual effort. Additionally, it provides analytics and keyword management features to enhance Instagram marketing strategies.
+The **ReplyPilot** is a full-stack web application designed to streamline interactions on Instagram by automatically responding to comments based on predefined keywords. This tool is particularly useful for businesses, influencers, and content creators who want to maintain engagement with their audience while reducing manual effort. Additionally, it provides analytics and keyword management features to enhance Instagram marketing strategies.
 
 With this tool, users can:
 - **Automate Instagram comment replies** based on specific keywords.

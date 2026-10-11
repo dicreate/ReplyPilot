@@ -117,7 +117,7 @@ class Notifier {
       const mailOptions = {
         from: process.env.EMAIL_USER,
         to: process.env.ADMIN_EMAIL,
-        subject: `Instagram DM Automation - ${severity.toUpperCase()} Error Alert`,
+        subject: `ReplyPilot - ${severity.toUpperCase()} Error Alert`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <div style="background-color: ${severityColors[severity]}; color: white; padding: 20px; text-align: center;">
@@ -138,7 +138,7 @@ class Notifier {
               <pre style="background-color: #e9ecef; padding: 10px; border-radius: 4px; overflow-x: auto;">${JSON.stringify(context, null, 2)}</pre>
             </div>
             <div style="padding: 20px; background-color: #e9ecef; text-align: center; font-size: 12px; color: #6c757d;">
-              Instagram DM Automation System
+              ReplyPilot
             </div>
           </div>
         `,
@@ -167,7 +167,7 @@ class Notifier {
       const mailOptions = {
         from: process.env.EMAIL_USER,
         to: process.env.ADMIN_EMAIL,
-        subject: `Instagram DM Automation - ${subject}`,
+        subject: `ReplyPilot - ${subject}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <div style="background-color: #007bff; color: white; padding: 20px; text-align: center;">
@@ -184,7 +184,7 @@ class Notifier {
               ` : ''}
             </div>
             <div style="padding: 20px; background-color: #e9ecef; text-align: center; font-size: 12px; color: #6c757d;">
-              Instagram DM Automation System
+              ReplyPilot
             </div>
           </div>
         `,
@@ -208,7 +208,7 @@ class Notifier {
       const mailOptions = {
         from: process.env.EMAIL_USER,
         to: process.env.ADMIN_EMAIL,
-        subject: 'Instagram DM Automation - Daily Summary',
+        subject: 'ReplyPilot - Daily Summary',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <div style="background-color: #28a745; color: white; padding: 20px; text-align: center;">
@@ -247,7 +247,7 @@ class Notifier {
               ` : ''}
             </div>
             <div style="padding: 20px; background-color: #e9ecef; text-align: center; font-size: 12px; color: #6c757d;">
-              Instagram DM Automation System - Daily Report
+              ReplyPilot - Daily Report
             </div>
           </div>
         `,
@@ -275,7 +275,7 @@ class Notifier {
       const mailOptions = {
         from: process.env.EMAIL_USER,
         to: process.env.ADMIN_EMAIL,
-        subject: `Instagram DM Automation - System Health ${isHealthy ? 'OK' : 'ALERT'}`,
+        subject: `ReplyPilot - System Health ${isHealthy ? 'OK' : 'ALERT'}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <div style="background-color: ${color}; color: white; padding: 20px; text-align: center;">
@@ -300,7 +300,7 @@ class Notifier {
               ` : ''}
             </div>
             <div style="padding: 20px; background-color: #e9ecef; text-align: center; font-size: 12px; color: #6c757d;">
-              Instagram DM Automation System
+              ReplyPilot
             </div>
           </div>
         `,

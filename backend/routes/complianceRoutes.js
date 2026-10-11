@@ -151,7 +151,7 @@ router.get('/privacy-policy', (req, res) => {
     <!DOCTYPE html>
     <html>
     <head>
-        <title>Privacy Policy - Instagram DM Automation</title>
+        <title>Privacy Policy - ReplyPilot</title>
         <style>
             body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
             h1, h2 { color: #333; }
@@ -163,7 +163,7 @@ router.get('/privacy-policy', (req, res) => {
         <p><strong>Last updated:</strong> ${new Date().toLocaleDateString()}</p>
         
         <h2>Information We Collect</h2>
-        <p>We collect the following information when you use our Instagram DM Automation service:</p>
+        <p>We collect the following information when you use our ReplyPilot service:</p>
         <ul>
             <li>Instagram user ID and username</li>
             <li>Access tokens for Instagram API access</li>
@@ -201,7 +201,7 @@ router.get('/terms', (req, res) => {
     <!DOCTYPE html>
     <html>
     <head>
-        <title>Terms of Service - Instagram DM Automation</title>
+        <title>Terms of Service - ReplyPilot</title>
         <style>
             body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
             h1, h2 { color: #333; }
@@ -213,7 +213,7 @@ router.get('/terms', (req, res) => {
         <p><strong>Last updated:</strong> ${new Date().toLocaleDateString()}</p>
         
         <h2>Acceptance of Terms</h2>
-        <p>By using our Instagram DM Automation service, you agree to these terms of service.</p>
+        <p>By using our ReplyPilot service, you agree to these terms of service.</p>
         
         <h2>Service Description</h2>
         <p>Our service provides automated direct messaging capabilities for Instagram accounts based on comment keywords.</p>

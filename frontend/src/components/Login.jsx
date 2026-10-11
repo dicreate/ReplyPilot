@@ -323,14 +323,14 @@ const Login = () => {
         <div className="container">
           <div className="row">
             <div className="col-lg-6">
-              <h5>Instagram DM Automation</h5>
+              <h5>ReplyPilot</h5>
               <p>
                 Automate your Instagram engagement and grow your audience with
                 intelligent DM responses.
               </p>
             </div>
             <div className="col-lg-6 text-lg-end">
-              <p>&copy; 2024 Instagram DM Automation. All rights reserved.</p>
+              <p>&copy; 2024 ReplyPilot. All rights reserved.</p>
             </div>
           </div>
         </div>

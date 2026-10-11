@@ -21,8 +21,8 @@ const Navbar = () => {
     <nav className="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
       <div className="container">
         <Link className="navbar-brand fw-bold" to="/" style={{ color: '#e1306c' }}>
-          <i className="fab fa-instagram me-2"></i>
-          DM Automation
+          <i className="fas fa-reply me-2"></i>
+          ReplyPilot
         </Link>
         <div className="navbar-nav ms-auto">
           {isAuthenticated && (

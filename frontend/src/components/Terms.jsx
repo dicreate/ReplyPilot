@@ -10,13 +10,13 @@ const Terms = () => {
 
           <h2>1. Acceptance of Terms</h2>
           <p>
-            By using Instagram DM Automation, you agree to these terms of
+            By using ReplyPilot, you agree to these terms of
             service. If you do not agree, please do not use the application.
           </p>
 
           <h2>2. Description of Service</h2>
           <p>
-            Instagram DM Automation allows you to set up keyword-based automated
+            ReplyPilot allows you to set up keyword-based automated
             responses to comments on your Instagram posts. The service monitors
             your posts and sends direct messages or private replies when
             configured keywords are detected.
