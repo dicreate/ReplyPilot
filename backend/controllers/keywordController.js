@@ -32,7 +32,9 @@ exports.addKeyword = async (req, res) => {
       enableFollowCheckButton,
       followButtonText,
       notFollowedYetMessage,
-      mediaIds
+      mediaIds,
+      buttons,
+      steps
     } = req.body;
     const userId = req.user.id;
 
@@ -83,7 +85,11 @@ exports.addKeyword = async (req, res) => {
       followButtonText: typeof followButtonText === 'string' && followButtonText.trim() ? followButtonText.trim() : '✅ Я подписался',
       notFollowedYetMessage: (notFollowedYetMessage || '').trim(),
       // Пустой массив = глобально под любым постом (дефолт для обратной совместимости)
-      mediaIds: Array.isArray(mediaIds) ? mediaIds : []
+      mediaIds: Array.isArray(mediaIds) ? mediaIds : [],
+      // Кнопки уже нормализованы в validateKeyword; здесь только дефолт
+      buttons: Array.isArray(buttons) ? buttons : [],
+      // Шаги воронки: массив шагов
+      steps: Array.isArray(steps) ? steps : []
     });
 
     await newKeyword.save();
@@ -110,7 +116,6 @@ exports.addKeyword = async (req, res) => {
 // Update an existing keyword
 exports.updateKeyword = async (req, res) => {
   try {
-    const { id } = req.params;
     const { 
       keyword, 
       message, 
@@ -118,7 +123,9 @@ exports.updateKeyword = async (req, res) => {
       enableFollowCheckButton,
       followButtonText,
       notFollowedYetMessage,
-      mediaIds
+      mediaIds,
+      buttons,
+      steps
     } = req.body;
     const userId = req.user.id;
 
@@ -146,7 +153,7 @@ exports.updateKeyword = async (req, res) => {
     }
 
     // Find the keyword to update
-    const existingKeyword = await Keyword.findOne({ _id: id, userId, isActive: true });
+    const existingKeyword = await Keyword.findOne({ _id: req.params.id, userId, isActive: true });
     if (!existingKeyword) {
       return res.status(404).json({
         success: false,
@@ -159,7 +166,7 @@ exports.updateKeyword = async (req, res) => {
       userId, 
       keyword: keyword.trim().toLowerCase(),
       isActive: true,
-      _id: { $ne: id }
+      _id: { $ne: req.params.id }
     });
 
     if (duplicateKeyword) {
@@ -185,6 +192,14 @@ exports.updateKeyword = async (req, res) => {
     // Скоуп перезаписываем только если поле передано — старые клиенты без mediaIds не затирают привязку
     if (mediaIds !== undefined) {
       existingKeyword.mediaIds = Array.isArray(mediaIds) ? mediaIds : [];
+    }
+    // Кнопки — так же: без поля в запросе не трогаем (уже нормализованы в validateKeyword)
+    if (buttons !== undefined) {
+      existingKeyword.buttons = Array.isArray(buttons) ? buttons : [];
+    }
+    // Шаги воронки — сохраняем при передаче
+    if (steps !== undefined) {
+      existingKeyword.steps = Array.isArray(steps) ? steps : [];
     }
     existingKeyword.updatedAt = new Date();
 

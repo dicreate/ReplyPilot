@@ -1,5 +1,37 @@
 const logger = require("../utils/logger");
 
+// Валидация и очистка кнопок (до 3 шт: url или postback)
+function validateAndCleanButtons(buttons) {
+  if (!Array.isArray(buttons)) {
+    return { error: "buttons must be an array (max 3)" };
+  }
+  if (buttons.length > 3) {
+    return { error: "Too many buttons (maximum 3)" };
+  }
+  const cleaned = [];
+  for (const raw of buttons) {
+    const title = String(raw?.title ?? '').trim().slice(0, 20);
+    const type = raw?.type === 'postback' ? 'postback' : 'url';
+    if (!title) {
+      return { error: "Button title is required (max 20 characters)" };
+    }
+    if (type === 'url') {
+      const url = String(raw?.url ?? '').trim();
+      if (!/^https:\/\/\S+$/i.test(url)) {
+        return { error: `Bad URL for button "${title}"` };
+      }
+      cleaned.push({ title, type, url, payload: '' });
+    } else {
+      const payload = String(raw?.payload ?? '').trim().slice(0, 1000);
+      if (!payload) {
+        return { error: `Button "${title}" needs a step code` };
+      }
+      cleaned.push({ title, type, url: '', payload });
+    }
+  }
+  return { cleaned };
+}
+
 // Validation middleware for keyword operations
 const validateKeyword = (req, res, next) => {
   const { keyword, message } = req.body;
@@ -103,6 +135,81 @@ const validateKeyword = (req, res, next) => {
         errors: { notFollowedYetMessage: "Maximum 1000 characters" }
       });
     }
+  }
+
+  // Кнопки автоответа: массив до 3.
+  if (req.body.buttons !== undefined) {
+    const btnResult = validateAndCleanButtons(req.body.buttons);
+    if (btnResult.error) {
+      return res.status(400).json({
+        success: false,
+        message: btnResult.error,
+        errors: { buttons: btnResult.error }
+      });
+    }
+    req.body.buttons = btnResult.cleaned;
+  }
+
+  // Цепочка сообщений воронки (опциональный массив шагов)
+  if (req.body.steps !== undefined) {
+    if (!Array.isArray(req.body.steps)) {
+      return res.status(400).json({
+        success: false,
+        message: "steps must be an array",
+        errors: { steps: "Must be an array" }
+      });
+    }
+    if (req.body.steps.length > 20) {
+      return res.status(400).json({
+        success: false,
+        message: "Too many steps (maximum 20 per keyword)",
+        errors: { steps: "Maximum 20 steps" }
+      });
+    }
+
+    const cleanedSteps = [];
+    for (let i = 0; i < req.body.steps.length; i++) {
+      const rawStep = req.body.steps[i];
+      const stepId = String(rawStep?.id || `step_${i + 1}`).trim();
+      const name = String(rawStep?.name ?? '').trim().slice(0, 100);
+      const stepMsg = String(rawStep?.message ?? '').trim();
+
+      if (!stepMsg) {
+        return res.status(400).json({
+          success: false,
+          message: `Step ${i + 1} message cannot be empty`,
+          errors: { steps: `Step ${i + 1} needs a message` }
+        });
+      }
+      if (stepMsg.length > 1000) {
+        return res.status(400).json({
+          success: false,
+          message: `Step ${i + 1} message is too long (maximum 1000 characters)`,
+          errors: { steps: `Step ${i + 1} exceeds 1000 characters` }
+        });
+      }
+
+      let stepButtons = [];
+      if (rawStep?.buttons !== undefined) {
+        const stepBtnResult = validateAndCleanButtons(rawStep.buttons);
+        if (stepBtnResult.error) {
+          return res.status(400).json({
+            success: false,
+            message: `Step ${i + 1}: ${stepBtnResult.error}`,
+            errors: { steps: stepBtnResult.error }
+          });
+        }
+        stepButtons = stepBtnResult.cleaned;
+      }
+
+      cleanedSteps.push({
+        id: stepId,
+        name: name || `Шаг ${i + 1}`,
+        message: stepMsg,
+        buttons: stepButtons
+      });
+    }
+    req.body.steps = cleanedSteps;
   }
 
   // Скоуп постов: опциональный массив ID постов.

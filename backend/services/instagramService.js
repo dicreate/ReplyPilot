@@ -252,13 +252,53 @@ class InstagramService {
     return Date.now() - ts <= this.getFallbackMaxAgeMs();
   }
 
-  async sendDirectMessage(recipientId, message, accessToken, ownerIgId, commentId = null, quickReplies = null, commentTimestamp = null) {
+  // Нормализация кнопок keyword в формат Meta button template:
+  // url → web_url, postback → postback. Максимум 3, title режем до 20.
+  // Тот же инвариант, что в validateKeyword — на случай старых записей из БД.
+  normalizeButtons(buttons) {
+    if (!Array.isArray(buttons) || buttons.length === 0) return [];
+    const out = [];
+    for (const raw of buttons.slice(0, 3)) {
+      const title = String(raw?.title ?? '').trim().slice(0, 20);
+      if (!title) continue;
+      if (raw?.type === 'postback') {
+        const payload = String(raw?.payload ?? '').trim().slice(0, 1000);
+        if (!payload) continue;
+        out.push({ type: 'postback', title, payload });
+      } else {
+        const url = String(raw?.url ?? '').trim();
+        if (!/^https:\/\/\S+$/i.test(url)) continue;
+        out.push({ type: 'web_url', title, url });
+      }
+    }
+    return out;
+  }
+
+  // Button template: текст (лимит Meta 640) + 1–3 неисчезающие кнопки.
+  buildButtonTemplate(text, buttons) {
+    return {
+      attachment: {
+        type: 'template',
+        payload: {
+          template_type: 'button',
+          text: String(text ?? '').slice(0, 640),
+          buttons
+        }
+      }
+    };
+  }
+
+  async sendDirectMessage(recipientId, message, accessToken, ownerIgId, commentId = null, quickReplies = null, commentTimestamp = null, buttons = null) {
     await this.waitForRateLimit();
 
+    const templateButtons = this.normalizeButtons(buttons);
+
     // --- 1. PRIMARY: Private Reply на комментарий ---
+    // Кнопки едут шаблоном прямо здесь (см. sendPrivateReply): DM-тред
+    // открывается по комменту сам, IGSID не нужен. Упадет — пойдет DM-fallback.
     if (commentId) {
       logger.info(`Attempting private reply to comment ${commentId}: ${message}`);
-      const replyResult = await this.sendPrivateReply(commentId, message, accessToken, ownerIgId, quickReplies);
+      const replyResult = await this.sendPrivateReply(commentId, message, accessToken, ownerIgId, quickReplies, templateButtons);
       if (replyResult.success) {
         return replyResult;
       }
@@ -318,9 +358,17 @@ class InstagramService {
     try {
       logger.info(`Attempting DM via /me/messages to IGSID ${igsId}: ${message}`);
 
-      const messagePayload = { text: message };
-      if (Array.isArray(quickReplies) && quickReplies.length > 0) {
-        messagePayload.quick_replies = quickReplies;
+      // Кнопки → button template (неисчезающие). Шаблон quick_replies не несет —
+      // при наличии кнопок они выигрывают, текст уходит внутрь template (лимит 640).
+      let messagePayload;
+      if (templateButtons.length > 0) {
+        logger.info(`Sending button template with ${templateButtons.length} button(s) to IGSID ${igsId}`);
+        messagePayload = this.buildButtonTemplate(message, templateButtons);
+      } else {
+        messagePayload = { text: message };
+        if (Array.isArray(quickReplies) && quickReplies.length > 0) {
+          messagePayload.quick_replies = quickReplies;
+        }
       }
 
       const response = await axios.post(
@@ -366,13 +414,22 @@ class InstagramService {
   // а POST на <APP_USERS_IG_ID>/messages с recipient:{comment_id}.
   // Старый путь /{comment-id}/private_replies на этой платформе не существует
   // (отвечает subcode 33 'does not support this operation').
-  async sendPrivateReply(commentId, message, accessToken, appUsersIgId, quickReplies = null) {
+  async sendPrivateReply(commentId, message, accessToken, appUsersIgId, quickReplies = null, templateButtons = null) {
     try {
+      const tplButtons = this.normalizeButtons(templateButtons);
       logger.info(`Sending private reply to comment ${commentId}: ${message}`);
 
-      const messagePayload = { text: message };
-      if (Array.isArray(quickReplies) && quickReplies.length > 0) {
-        messagePayload.quick_replies = quickReplies;
+      // Кнопки едут и через private reply: recipient:{comment_id} принимает
+      // тот же объект message, включая template. Так работают ChatPlace и co —
+      // DM-тред с кнопками открывается сразу по комменту, без prior переписки.
+      let messagePayload;
+      if (tplButtons.length > 0) {
+        messagePayload = this.buildButtonTemplate(message, tplButtons);
+      } else {
+        messagePayload = { text: message };
+        if (Array.isArray(quickReplies) && quickReplies.length > 0) {
+          messagePayload.quick_replies = quickReplies;
+        }
       }
 
       const response = await axios.post(
@@ -441,8 +498,9 @@ class InstagramService {
   // Иначе проверяем подписку: не подписан → альтернативный текст + кнопка, подписан/ошибка → основной.
   async resolveResponseMessage(keyword, context, authorIgsid, accessToken) {
     const mainText = messageProcessor.processMessage(keyword.message, context);
+    const buttons = this.normalizeButtons(keyword.buttons);
     const altRaw = (keyword.messageForNonFollowers || '').trim();
-    if (!altRaw) return { text: mainText, isFollower: null, quickReplies: null };
+    if (!altRaw) return { text: mainText, isFollower: null, quickReplies: null, buttons };
     const follows = await this.isFollower(authorIgsid, accessToken);
     if (follows === false) {
       let quickReplies = null;
@@ -459,10 +517,11 @@ class InstagramService {
       return { 
         text: messageProcessor.processMessage(altRaw, context), 
         isFollower: false, 
-        quickReplies 
+        quickReplies,
+        buttons 
       };
     }
-    return { text: mainText, isFollower: follows, quickReplies: null };
+    return { text: mainText, isFollower: follows, quickReplies: null, buttons };
   }
 
   // Get user profile information

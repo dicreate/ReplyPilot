@@ -79,7 +79,7 @@ router.post('/instagram', async (req, res) => {
     // Process webhook events
     if (payload.entry) {
       for (const entry of payload.entry) {
-        // 1. Handling messaging events (capture IGSID)
+        // 1. Handling messaging events (capture IGSID, button clicks, postbacks)
         if (entry.messaging) {
           for (const messagingEvent of entry.messaging) {
             try {
@@ -116,7 +116,7 @@ router.post('/instagram', async (req, res) => {
 });
 
 /**
- * Capture IGSID from messaging events (sender.id) and handle follow verification button clicks
+ * Capture IGSID from messaging events (sender.id) and handle button clicks (verification, funnel steps)
  */
 async function handleMessagingEvent(ownerIgId, messagingEvent) {
   const senderId = messagingEvent.sender?.id;
@@ -158,11 +158,144 @@ async function handleMessagingEvent(ownerIgId, messagingEvent) {
     return;
   }
 
-  // 2. Fallback: если пользователь ответил текстом вроде "подписался" / "я подписался"
+  // 2. Кнопка «переход на этап» (postback или quick reply из button template keyword'а)
+  if (payload && typeof payload === 'string') {
+    logger.info(`Received button tap from ${senderId}: payload="${payload}"`);
+    const handled = await processStepTransition(ownerIgId, senderId, payload);
+    if (handled) return;
+  }
+
+  // 3. Fallback: если пользователь ответил текстом вроде "подписался" / "я подписался"
   const incomingText = (messagingEvent.message?.text || '').trim().toLowerCase();
   if (/^(?:я\s+)?подписал(?:ся|ась)|готово|подписка|subscribed?$/i.test(incomingText)) {
     logger.info(`Received follow check text trigger "${incomingText}" from ${senderId}`);
     await processFollowVerification(ownerIgId, senderId, null);
+  }
+}
+
+/**
+ * Обработка нажатия на кнопку перехода на следующий шаг воронки (Этап 2 / ChatPlace flow)
+ */
+async function processStepTransition(ownerIgId, senderId, payload) {
+  try {
+    if (!payload || typeof payload !== 'string') return false;
+
+    // Ищем бизнес-аккаунт / пользователя владельца
+    let user = await User.findOne({
+      $or: [
+        { instagramId: String(ownerIgId) },
+        { instagramAccounts: { $elemMatch: { instagramId: String(ownerIgId) } } },
+      ],
+    });
+    if (!user && process.env.INSTAGRAM_BUSINESS_ID && String(ownerIgId) === String(process.env.INSTAGRAM_BUSINESS_ID)) {
+      user = await User.findOne().sort({ lastLogin: -1 });
+    }
+
+    if (!user || !user.accessToken) {
+      logger.warn(`No user or accessToken found for owner ${ownerIgId} on step transition`);
+      return false;
+    }
+
+    let keyword = null;
+    let targetStepId = null;
+
+    // Формат 1: STEP_<keywordId>_<stepId>
+    const match = payload.match(/^STEP[;_]([0-9a-fA-F]{24})[;_](.+)$/);
+    if (match) {
+      const keywordId = match[1];
+      targetStepId = match[2];
+      keyword = await Keyword.findOne({ _id: keywordId, userId: user._id });
+    }
+
+    // Формат 2: поиск по stepId или кастомному коду шага
+    if (!keyword) {
+      const cleanCode = payload.replace(/^STEP[_:]/i, '').trim();
+      targetStepId = cleanCode || payload;
+      keyword = await Keyword.findOne({
+        userId: user._id,
+        isActive: true,
+        $or: [
+          { "steps.id": targetStepId },
+          { "steps.id": payload },
+          { "steps.name": targetStepId }
+        ]
+      });
+    }
+
+    // Fallback: берем последнее активное правило с шагами
+    if (!keyword) {
+      keyword = await Keyword.findOne({
+        userId: user._id,
+        isActive: true,
+        "steps.0": { $exists: true }
+      }).sort({ lastUsed: -1, updatedAt: -1 });
+    }
+
+    if (!keyword || !Array.isArray(keyword.steps) || keyword.steps.length === 0) {
+      logger.warn(`No keyword with steps found for payload "${payload}" (user: ${user._id})`);
+      return false;
+    }
+
+    // Находим конкретный шаг в массиве steps
+    const step = keyword.steps.find(s => 
+      s.id === targetStepId || 
+      s.id === payload || 
+      `STEP_${s.id}` === payload || 
+      s.name === targetStepId
+    );
+
+    if (!step) {
+      logger.warn(`Step "${targetStepId}" not found in keyword "${keyword.keyword}" (${keyword._id})`);
+      return false;
+    }
+
+    let username = '';
+    const conv = await IgConversation.findOne({ igsId: String(senderId) });
+    if (conv && conv.username) {
+      username = conv.username;
+    }
+
+    const context = { username: username || 'друг', keyword: keyword.keyword };
+    const stepText = messageProcessor.processMessage(step.message, context);
+
+    // Подготавливаем кнопки шага: если кнопка ведет на следующий шаг,
+    // упаковываем payload как STEP_<keywordId>_<stepId>
+    const stepButtons = (step.buttons || []).map(btn => {
+      const raw = btn.toObject ? btn.toObject() : { ...btn };
+      if (raw.type === 'postback' && raw.payload && !raw.payload.startsWith(`STEP_${keyword._id}`)) {
+        const clean = raw.payload.replace(/^STEP_/, '');
+        raw.payload = `STEP_${keyword._id}_${clean}`;
+      }
+      return raw;
+    });
+
+    logger.info(`Sending funnel step "${step.name || step.id}" for keyword "${keyword.keyword}" to ${senderId}`);
+
+    const sendResult = await instagramService.sendDirectMessage(
+      senderId,
+      stepText,
+      user.accessToken,
+      user.instagramId || ownerIgId,
+      null, // commentId is null for in-thread message
+      null, // quickReplies
+      null, // commentTimestamp
+      stepButtons
+    );
+
+    if (sendResult.success) {
+      keyword.matchCount = (keyword.matchCount || 0) + 1;
+      keyword.lastUsed = new Date();
+      await keyword.save();
+      await updateWebhookAnalytics(user._id, true, true, false);
+      return true;
+    } else {
+      logger.error(`Failed to send step response to ${senderId}: ${sendResult.error}`);
+      await updateWebhookAnalytics(user._id, true, false, true);
+      return false;
+    }
+  } catch (err) {
+    logger.error(`Error in processStepTransition: ${err.message}`);
+    return false;
   }
 }
 
@@ -230,11 +363,25 @@ async function processFollowVerification(ownerIgId, senderId, keywordId = null) 
       const mainText = messageProcessor.processMessage(keyword.message, context);
       logger.info(`User ${senderId} confirmed subscription! Sending main response for keyword "${keyword.keyword}"`);
 
+      // Подготавливаем кнопки с привязкой к keywordId
+      const preparedButtons = (keyword.buttons || []).map(btn => {
+        const raw = btn.toObject ? btn.toObject() : { ...btn };
+        if (raw.type === 'postback' && raw.payload && !raw.payload.startsWith(`STEP_${keyword._id}`)) {
+          const clean = raw.payload.replace(/^STEP_/, '');
+          raw.payload = `STEP_${keyword._id}_${clean}`;
+        }
+        return raw;
+      });
+
       const sendResult = await instagramService.sendDirectMessage(
         senderId,
         mainText,
         user.accessToken,
-        user.instagramId || ownerIgId
+        user.instagramId || ownerIgId,
+        null,
+        null,
+        null,
+        preparedButtons
       );
 
       if (sendResult.success) {
@@ -344,21 +491,20 @@ async function handleCommentEvent(entryId, value, entryTime = null) {
 
   let matchedKeyword = null;
   let responseMessage = null;
-  let resolvedQuickReplies = null;
+  let resolved = null;
 
   if (keywords.length > 0 && !keywordMatchingService.shouldIgnoreComment(text)) {
     const bestMatch = keywordMatchingService.getBestMatch(text, keywords);
     if (bestMatch) {
       matchedKeyword = bestMatch.keyword;
       // Текст с учетом подписки автора (is_user_follow_business).
-      const resolved = await instagramService.resolveResponseMessage(
+      resolved = await instagramService.resolveResponseMessage(
         matchedKeyword,
         { username: from.username, keyword: matchedKeyword.keyword },
         from.id ? String(from.id) : 'unknown',
         user.accessToken
       );
       responseMessage = resolved.text;
-      resolvedQuickReplies = resolved.quickReplies;
       record.keywordMatched = matchedKeyword.keyword;
       record.responseMessage = responseMessage;
     }
@@ -366,14 +512,25 @@ async function handleCommentEvent(entryId, value, entryTime = null) {
 
   if (matchedKeyword && responseMessage) {
     try {
+      // Подготавливаем кнопки с привязкой к keywordId для надежной маршрутизации шагов
+      const initialButtons = (resolved?.buttons || []).map(btn => {
+        const raw = btn.toObject ? btn.toObject() : { ...btn };
+        if (raw.type === 'postback' && raw.payload && !raw.payload.startsWith(`STEP_${matchedKeyword._id}`)) {
+          const clean = raw.payload.replace(/^STEP_/, '');
+          raw.payload = `STEP_${matchedKeyword._id}_${clean}`;
+        }
+        return raw;
+      });
+
       const dmResult = await instagramService.sendDirectMessage(
         from.id || 'unknown',
         responseMessage,
         user.accessToken,
         user.instagramId,
         commentId,
-        resolvedQuickReplies,
-        entryTime
+        resolved?.quickReplies,
+        entryTime,
+        initialButtons
       );
 
       if (dmResult.success) {

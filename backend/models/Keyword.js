@@ -1,5 +1,27 @@
 const mongoose = require("mongoose");
 
+// Кнопки автоответа (как в ChatPlace): до 3 на сообщение/шаг.
+// type 'url' — переход по ссылке (web_url, работает сразу во встроенном браузере),
+// type 'postback' — переход на этап воронки (payload прилетает в messaging_postbacks).
+const KeywordButtonSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  type: { type: String, enum: ['url', 'postback'], default: 'url' },
+  url: { type: String, default: '' },
+  payload: { type: String, default: '' }
+}, { _id: false });
+
+// Шаг цепочки сообщений (воронка без Canvas):
+// id — уникальный идентификатор шага (напр. step_1, step_2, step_contacts)
+// name — читаемое название для выбора в выпадающем списке UI
+// message — текст сообщения шага (до 640 символов)
+// buttons — до 3 кнопок шага (Ссылка или следующий Этап)
+const KeywordStepSchema = new mongoose.Schema({
+  id: { type: String, required: true },
+  name: { type: String, default: '' },
+  message: { type: String, required: true },
+  buttons: { type: [KeywordButtonSchema], default: [] }
+}, { _id: false });
+
 const KeywordSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   keyword: { type: String, required: true },
@@ -15,6 +37,10 @@ const KeywordSchema = new mongoose.Schema({
   // Скоуп постов: какие media (ID постов) отслеживает keyword.
   // Пустой массив = глобально, срабатывает под любым постом (обратная совместимость).
   mediaIds: { type: [String], default: [] },
+  // Неисчезающие кнопки ответа (button template). Пусто = обычный текст.
+  buttons: { type: [KeywordButtonSchema], default: [] },
+  // Цепочка сообщений (воронка): следующие шаги при нажатии кнопок-этапов.
+  steps: { type: [KeywordStepSchema], default: [] },
   matchCount: { type: Number, default: 0 },
   lastUsed: { type: Date },
   createdAt: { type: Date, default: Date.now },

@@ -199,7 +199,8 @@ exports.processMediaComments = async (req, res) => {
               user.instagramId,
               comment.id,
               resolved?.quickReplies,
-              comment.timestamp
+              comment.timestamp,
+              resolved?.buttons
             );
 
             if (dmResult.success) {
