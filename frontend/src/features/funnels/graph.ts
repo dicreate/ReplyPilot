@@ -75,7 +75,7 @@ export const createFunnelButton = (type: 'url' | 'postback' = 'url'): FunnelButt
 /** Id хэндла-источника постбэк-кнопки (по нему связываются нода и кнопка). */
 export const sourceHandle = (buttonId: string) => `out-${buttonId}`
 export const buttonIdFromHandle = (handleId: string | null | undefined) =>
-  handleId?.startsWith('out-') ? handleId.slice(3) : null
+  handleId?.startsWith('out-') ? handleId.slice('out-'.length) : null
 
 /* ========================= Десериализация ========================= */
 
@@ -244,7 +244,8 @@ function computeStepDepths(
     const step = steps.find((s) => s.id === id)
     for (const btn of step?.buttons ?? []) {
       if (btn.type === 'postback') {
-        const t = btn.targetStepId ?? resolveTargetFromPayload(btn.payload ?? '', rule)
+        void btn // RuleButton больше не несёт targetStepId — только payload
+        const t = resolveTargetFromPayload(btn.payload ?? '', rule)
         if (t && !depth.has(t)) queue.push({ id: t, d: d + 1 })
       }
     }
@@ -383,7 +384,11 @@ export function validateFunnel(nodeCount: number, graph: FunnelGraph): FunnelIss
     if (node.type === 'gate') {
       const g = data as GateNodeData
       if (!g.messageForNonFollowers.trim()) {
-        issues.push({ severity: 'error', nodeId: node.id, text: 'Сообщение для неподписанных пустое' })
+        issues.push({
+          severity: 'warning',
+          nodeId: node.id,
+          text: 'Follow-gate выключен: сообщение для неподписанных пустое',
+        })
       }
     }
     if (node.type === 'step') {
@@ -401,7 +406,7 @@ export function validateFunnel(nodeCount: number, graph: FunnelGraph): FunnelIss
         })
       }
     }
-    for (const btn of (data as TriggerNodeData).buttons ?? (data as GateNodeData).buttons ?? []) {
+    for (const btn of node.type === 'trigger' || node.type === 'step' ? (data as TriggerNodeData | StepNodeData).buttons : []) {
       if (btn.type !== 'postback') continue
       if (!btn.targetStepId && !btn.customPayload) {
         issues.push({

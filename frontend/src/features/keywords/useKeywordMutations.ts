@@ -14,9 +14,8 @@ export interface KeywordResponse {
 const errMessage = (err: unknown, fallback: string) =>
   (err as { response?: { data?: { message?: string } } }).response?.data?.message ?? fallback
 
-async function createKeyword(input: KeywordFormValues & { steps?: KeywordRule['steps'] }) {
-  const { postScope: _scope, ...payload } = input
-  const res = await api.post<KeywordResponse>('/api/keywords', payload)
+async function createKeyword(input: Omit<KeywordFormValues, 'postScope'> & { steps?: KeywordRule['steps'] }) {
+  const res = await api.post<KeywordResponse>('/api/keywords', input)
   return res.data.data
 }
 
@@ -41,7 +40,7 @@ export function useKeywordMutations() {
   const update = useMutation({
     mutationFn: ({ id, input }: { id: string; input: Partial<KeywordRule> }) =>
       updateKeyword(id, input as Partial<KeywordFormValues> & { steps?: KeywordRule['steps'] }),
-    onSuccess: async (rule) => {
+    onSuccess: async () => {
       toast.success('Изменения сохранены')
       await invalidate()
     },

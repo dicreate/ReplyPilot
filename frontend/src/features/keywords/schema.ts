@@ -12,8 +12,8 @@ export const buttonSchema = z
   .object({
     title: z.string().trim().min(1, 'Укажите текст кнопки').max(BUTTON_TITLE_MAX),
     type: z.enum(['url', 'postback']),
-    url: z.string().trim().optional().default(''),
-    payload: z.string().trim().optional().default(''),
+    url: z.string().trim(),
+    payload: z.string().trim(),
   })
   .superRefine((btn, ctx) => {
     if (btn.type === 'url' && !/^https:\/\/\S+$/i.test(btn.url ?? '')) {
@@ -48,10 +48,10 @@ export const keywordFormSchema = z
     buttons: z.array(buttonSchema).max(MAX_BUTTONS),
     postScope: z.enum(['all', 'specific']),
     mediaIds: z.array(z.string().regex(/^\d+$/, 'Некорректный ID поста')).max(50),
-    messageForNonFollowers: z.string().max(GATE_MESSAGE_MAX).optional().default(''),
-    enableFollowCheckButton: z.boolean().optional().default(true),
-    followButtonText: z.string().max(FOLLOW_BTN_MAX).optional().default(''),
-    notFollowedYetMessage: z.string().max(GATE_MESSAGE_MAX).optional().default(''),
+    messageForNonFollowers: z.string().max(GATE_MESSAGE_MAX),
+    enableFollowCheckButton: z.boolean(),
+    followButtonText: z.string().max(FOLLOW_BTN_MAX),
+    notFollowedYetMessage: z.string().max(GATE_MESSAGE_MAX),
   })
   .refine((v) => v.postScope === 'all' || v.mediaIds.length > 0, {
     message: 'Выберите хотя бы один пост',

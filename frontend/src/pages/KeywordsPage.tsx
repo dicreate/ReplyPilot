@@ -8,7 +8,7 @@ import {
   Plus,
   Pencil,
   Trash2,
-  ImageCheck,
+  Images,
   Lock,
   Search,
   TrendingUp,
@@ -107,7 +107,7 @@ export function KeywordsPage() {
                       <Badge className="font-mono">{rule.keyword}</Badge>
                       {(rule.mediaIds?.length ?? 0) > 0 ? (
                         <Badge variant="outline" title={rule.mediaIds?.join(', ')}>
-                          <ImageCheck className="size-3" />
+                          <Images className="size-3" />
                           {rule.mediaIds?.length} пост(ов)
                         </Badge>
                       ) : (

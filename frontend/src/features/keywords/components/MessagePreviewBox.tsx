@@ -21,12 +21,12 @@ export function MessagePreviewBox({ message, placeholders = {}, onInsert }: Mess
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    if (!message.trim()) {
-      setPreview(null)
-      setInvalid([])
-      return
-    }
     debounceRef.current = setTimeout(async () => {
+      if (!message.trim()) {
+        setPreview(null)
+        setInvalid([])
+        return
+      }
       try {
         const result = await previewMutation.mutateAsync(message)
         setPreview(result?.preview ?? null)

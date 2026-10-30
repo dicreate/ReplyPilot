@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
 import { KeyRound, Loader2, MessageSquareText, Plus, Save } from 'lucide-react'
@@ -136,7 +136,7 @@ export function KeywordFormDialog({
     name: s.name,
   }))
 
-  const messageValue = form.watch('message')
+  const messageValue = useWatch({ control: form.control, name: 'message' })
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

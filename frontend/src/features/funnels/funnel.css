@@ -1,0 +1,249 @@
+/* ReplyPilot funnel editor — кастомные ноды/рёбра поверх @xyflow/react базовых стилей */
+
+.rp-node {
+  --rp-accent: var(--color-primary);
+  width: 280px;
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.08);
+  font-size: 12px;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.rp-node:hover {
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.12);
+}
+
+.rp-node.selected,
+.rp-node.selected:hover {
+  border-color: var(--rp-accent);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--rp-accent) 35%, transparent),
+    0 6px 20px rgb(0 0 0 / 0.12);
+}
+
+.rp-node[data-issue='error'] {
+  border-color: var(--color-destructive);
+}
+
+.rp-node[data-issue='warning'] {
+  border-color: color-mix(in oklab, var(--chart-4) 70%, var(--color-border));
+}
+
+.rp-node__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.rp-node__icon {
+  display: flex;
+  width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.rp-node__icon--trigger {
+  background: linear-gradient(120deg, #e1306c, #f77737);
+}
+
+.rp-node__icon--step {
+  background: var(--color-chart-2);
+}
+
+.rp-node__icon--gate {
+  background: #b45309;
+}
+
+.rp-node__kicker {
+  color: var(--color-muted-foreground);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  line-height: 1;
+}
+
+.rp-node__title {
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.rp-node__badges {
+  position: absolute;
+  top: -9px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+}
+
+.rp-node__badge {
+  background: var(--rp-accent);
+  color: white;
+  font-size: 9px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 2px 6px;
+  line-height: 1;
+}
+
+.rp-node__body {
+  padding: 10px 12px;
+}
+
+.rp-node__message {
+  color: var(--color-foreground);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 84px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+}
+
+.rp-node__message--empty {
+  color: var(--color-destructive);
+  font-style: italic;
+}
+
+.rp-node__charcount {
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--color-muted-foreground);
+  text-align: right;
+}
+
+.rp-node__charcount--over {
+  color: var(--color-destructive);
+  font-weight: 600;
+}
+
+.rp-node__buttons {
+  margin-top: 8px;
+  border-top: 1px dashed var(--color-border);
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rp-btn-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: space-between;
+}
+
+.rp-btn-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  padding: 3px 8px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.rp-btn-chip--postback {
+  border-color: color-mix(in oklab, var(--rp-accent) 45%, var(--color-border));
+  background: color-mix(in oklab, var(--rp-accent) 8%, var(--color-background));
+}
+
+.rp-btn-chip .rp-btn-chip__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rp-btn-chip__arrow {
+  color: var(--color-muted-foreground);
+  flex-shrink: 0;
+}
+
+.rp-handles {}
+
+/* Хэндлы: компактные, заметные при hover ноды */
+.rp-handle {
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--color-card);
+  background: var(--rp-accent);
+  transition: transform 0.12s ease;
+}
+
+.rp-handle:hover,
+.rp-handle.connection:hover {
+  transform: scale(1.5);
+}
+
+.rp-handle--in {
+  left: -5px;
+}
+
+/* Edge этикетки */
+.rp-edge-label {
+  font-size: 10px;
+  font-weight: 600;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 2px 8px;
+  color: var(--color-muted-foreground);
+}
+
+.rp-edge-label--gate {
+  border-color: #f59e0b;
+  color: #b45309;
+}
+
+/* Панель инструментов канвы */
+.rp-canvas-toolbar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+/* Мини-превью ДМ внутри инспектора */
+.rp-dm-preview {
+  border-radius: 12px;
+  background: var(--color-muted);
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.rp-dm-preview__buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.rp-dm-preview__button {
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
+  border-radius: 8px;
+  padding: 4px 8px;
+  text-align: center;
+  font-weight: 500;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

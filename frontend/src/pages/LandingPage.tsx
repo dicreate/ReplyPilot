@@ -4,7 +4,6 @@ import {
   BarChart3,
   Check,
   Clock,
-  Instagram,
   MessageSquareText,
   ShieldCheck,
   Sparkles,
@@ -12,6 +11,7 @@ import {
   Zap,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { InstagramIcon } from '@/components/InstagramIcon'
 import { useInstagramOAuth, buildInstagramOAuthUrl } from '@/features/auth/useInstagramOAuth'
 
 const FEATURES = [
@@ -86,7 +86,7 @@ export function LandingPage() {
               {...fadeUp}
               className="mb-4 inline-flex items-center gap-1.5 rounded-full border bg-card px-3 py-1 text-xs font-medium text-muted-foreground"
             >
-              <Instagram className="size-3.5 text-primary" />
+              <InstagramIcon className="size-3.5 text-primary" />
               Official Instagram automation
             </motion.p>
             <motion.h1
@@ -121,7 +121,7 @@ export function LandingPage() {
                   </>
                 ) : (
                   <>
-                    <Instagram className="size-5" aria-hidden="true" />
+                    <InstagramIcon className="size-5" aria-hidden="true" />
                     Get Started Free
                   </>
                 )}
