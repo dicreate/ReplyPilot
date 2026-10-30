@@ -1,8 +1,19 @@
 import { useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
-import { KeyRound, Loader2, MessageSquareText, Plus, Save } from 'lucide-react'
+import {
+  ArrowRight,
+  KeyRound,
+  Link2,
+  Loader2,
+  MessageSquareText,
+  Plus,
+  Save,
+  Workflow,
+} from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
@@ -50,6 +61,83 @@ const ruleToFormValues = (rule: KeywordRule): KeywordFormValues => ({
   followButtonText: rule.followButtonText ?? '✅ Я подписался',
   notFollowedYetMessage: rule.notFollowedYetMessage ?? '',
 })
+
+/** Визуализация цепочки воронки: триггер → кнопки → шаги (и их кнопки-чипы). */
+function FunnelChainSection({
+  rule,
+  busy,
+  onOpenCanvas,
+}: {
+  rule: KeywordRule
+  busy?: boolean
+  onOpenCanvas: () => void
+}) {
+  const steps = rule.steps ?? []
+  return (
+    <div className="rounded-xl border border-primary/30 bg-primary/5 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="flex items-center gap-1.5 text-sm font-semibold">
+          <Workflow className="size-4 text-primary" aria-hidden="true" />
+          Цепочка сообщений
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          disabled={busy}
+          onClick={onOpenCanvas}
+        >
+          <Workflow className="size-3.5" />
+          Открыть канву
+        </Button>
+      </div>
+
+      {steps.length === 0 ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Шагов пока нет. Добавьте их на канве и свяжите кнопками — после возврата цепочка появится
+          здесь и в форме кнопок ниже.
+        </p>
+      ) : (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <Badge className="font-mono">{rule.keyword}</Badge>
+
+          {/* Первое сообщение: кнопки отображаем чипами */}
+          {(rule.buttons ?? []).map((b, i) => (
+            <span key={`${b.title}-${i}`} className="flex items-center gap-1.5">
+              <ArrowRight className="size-3 text-muted-foreground" aria-hidden="true" />
+              <Badge variant="outline" title={b.type === 'url' ? `Ссылка: ${b.url}` : 'Переход к шагу'}>
+                {b.type === 'url' && <Link2 className="size-3" aria-hidden="true" />}
+                {b.title || '(кнопка)'}
+              </Badge>
+            </span>
+          ))}
+
+          {/* Шаги: название + кнопки шага в виде чипов */}
+          {steps.map((s, i) => (
+            <span key={s.id} className="contents">
+              <span className="flex items-center gap-1.5">
+                <ArrowRight className="size-3 text-muted-foreground" aria-hidden="true" />
+                <Badge variant="secondary">{s.name || `Шаг ${i + 2}`}</Badge>
+              </span>
+              {(s.buttons ?? []).map((b, j) => (
+                <Badge key={`${s.id}-btn-${j}`} variant="outline" title={b.type === 'url' ? `Ссылка: ${b.url}` : 'Переход к следующему шагу'}>
+                  {b.type === 'url' && <Link2 className="size-3" aria-hidden="true" />}
+                  {b.title || '(кнопка)'}
+                </Badge>
+              ))}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+        Кнопки и шаги, добавленные на канве, автоматически появятся в этой форме — блок
+        «Кнопки под первым сообщением» синхронизирован.
+      </p>
+    </div>
+  )
+}
 
 export function KeywordFormDialog({
   open,
@@ -100,7 +188,7 @@ export function KeywordFormDialog({
     })
   }
 
-  const onSubmit = async (values: KeywordFormValues) => {
+  const buildPayload = (values: KeywordFormValues) => {
     const availableSteps: AvailableStep[] =
       editing?.steps?.map((s) => ({ id: s.id, name: s.name })) ?? []
     const normalizedButtons = values.buttons.map((b) => ({
@@ -115,7 +203,7 @@ export function KeywordFormDialog({
           : '',
     }))
 
-    const payload = {
+    return {
       keyword: values.keyword,
       message: values.message,
       buttons: normalizedButtons,
@@ -125,6 +213,10 @@ export function KeywordFormDialog({
       followButtonText: values.followButtonText || '✅ Я подписался',
       notFollowedYetMessage: values.notFollowedYetMessage ?? '',
     }
+  }
+
+  const onSubmit = async (values: KeywordFormValues) => {
+    const payload = buildPayload(values)
 
     if (editing) {
       await update.mutateAsync({ id: editing._id, input: payload })
@@ -136,6 +228,17 @@ export function KeywordFormDialog({
       onOpenChange(false)
       onCreated?.(rule)
     }
+  }
+
+  const navigate = useNavigate()
+
+  /** Из полной формы: сохранить правки и открыть редактор воронки на канве. */
+  const openCanvas = () => {
+    if (!editing) return
+    form.handleSubmit(async (values) => {
+      await update.mutateAsync({ id: editing._id, input: buildPayload(values) })
+      navigate(`/funnels/${editing._id}`)
+    })()
   }
 
   const availableSteps: AvailableStep[] = (editing?.steps ?? []).map((s) => ({
@@ -225,6 +328,14 @@ export function KeywordFormDialog({
                 placeholders={placeholders}
                 onInsert={insertAtCursor}
               />
+
+              {/* Цепочка сообщений: визуализация + переход на канву (только для существующего правила) */}
+              {editing && (
+                <>
+                  <Separator />
+                  <FunnelChainSection rule={editing} busy={busy} onOpenCanvas={openCanvas} />
+                </>
+              )}
 
               {!quick && (
                 <div>
