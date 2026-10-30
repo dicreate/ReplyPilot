@@ -24,6 +24,11 @@ interface KeywordFormDialogProps {
   onOpenChange: (open: boolean) => void
   /** Редактируемое правило; null/undefined — создание */
   editing?: KeywordRule | null
+  /**
+   * 'full' — вся форма, включая кнопки первого сообщения (классический вариант).
+   * 'quick' — только слово + сообщение; цепочку собирают на канве воронки.
+   */
+  mode?: 'full' | 'quick'
   /** Вызов после успешного создания (напр. открыть редактор воронки) */
   onCreated?: (rule: KeywordRule) => void
   onSaved?: () => void
@@ -50,9 +55,11 @@ export function KeywordFormDialog({
   open,
   onOpenChange,
   editing = null,
+  mode = 'full',
   onCreated,
   onSaved,
 }: KeywordFormDialogProps) {
+  const quick = mode === 'quick'
   const { create, update } = useKeywordMutations()
   const messageRef = useRef<HTMLTextAreaElement | null>(null)
   const busy = create.isPending || update.isPending
@@ -144,11 +151,12 @@ export function KeywordFormDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <KeyRound className="size-5 text-primary" aria-hidden="true" />
-            {editing ? 'Редактировать правило' : 'Новое правило автоответа'}
+            {editing ? 'Редактировать правило' : quick ? 'Новая воронка' : 'Новое правило автоответа'}
           </DialogTitle>
           <DialogDescription>
-            Комментарий под постом совпадает с ключевым словом → бот отправляет ДМ и запускает
-            воронку.
+            {quick
+              ? 'Достаточно ключевого слова и первого сообщения — кнопки, шаги и follow-gate соберёте на канве воронки.'
+              : 'Комментарий под постом совпадает с ключевым словом → бот отправляет ДМ и запускает воронку.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -218,35 +226,41 @@ export function KeywordFormDialog({
                 onInsert={insertAtCursor}
               />
 
-              <div>
-                <p className="mb-2 text-xs font-semibold text-muted-foreground">
-                  Кнопки под первым сообщением (до 3)
-                </p>
-                <ButtonsEditor
-                  availableSteps={availableSteps}
-                  disabled={busy}
-                  addLabel="Добавить кнопку"
-                />
-                <p className="mt-1.5 text-xs text-muted-foreground">
-                  Полная цепочка шагов собирается в{' '}
-                  <span className="font-medium text-primary">Канве воронок</span> после сохранения
-                  правила.
-                </p>
-              </div>
+              {!quick && (
+                <div>
+                  <p className="mb-2 text-xs font-semibold text-muted-foreground">
+                    Кнопки под первым сообщением (до 3)
+                  </p>
+                  <ButtonsEditor
+                    availableSteps={availableSteps}
+                    disabled={busy}
+                    addLabel="Добавить кнопку"
+                  />
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    Полная цепочка шагов собирается в{' '}
+                    <span className="font-medium text-primary">Канве воронок</span> после сохранения
+                    правила.
+                  </p>
+                </div>
+              )}
             </section>
 
-            <Separator />
+            {!quick && (
+              <>
+                <Separator />
 
-            {/* Скоуп постов */}
-            <div>
-              <p className="mb-2 text-sm font-semibold">Под какими постами отслеживать</p>
-              <PostsScopePicker />
-            </div>
+                {/* Скоуп постов */}
+                <div>
+                  <p className="mb-2 text-sm font-semibold">Под какими постами отслеживать</p>
+                  <PostsScopePicker />
+                </div>
 
-            <Separator />
+                <Separator />
 
-            {/* follow-gate */}
-            <FollowGateFields />
+                {/* follow-gate */}
+                <FollowGateFields />
+              </>
+            )}
 
             {/* Actions */}
             <div className="flex items-center justify-end gap-2 pt-2">
@@ -267,7 +281,7 @@ export function KeywordFormDialog({
                 ) : (
                   <>
                     <Plus className="size-4" />
-                    Создать правило
+                    {quick ? 'Создать и открыть канву' : 'Создать правило'}
                   </>
                 )}
               </Button>

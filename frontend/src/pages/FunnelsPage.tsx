@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { keywordsQueryOptions } from '@/features/keywords/keywordQueries'
+import { KeywordFormDialog } from '@/features/keywords/components/KeywordFormDialog'
 import type { KeywordRule } from '@/types/api'
 
 /*** Мини-превью цепочки воронки: триггер → шаги (нажимаемо). */
@@ -51,6 +52,7 @@ export function FunnelsPage() {
   const navigate = useNavigate()
   // Локальный поиск: без сет-стейта строки адреса — это не лист «жанра», а каталог карточек
   const [query, setQuery] = useState<string>('')
+  const [quickCreateOpen, setQuickCreateOpen] = useState(false)
 
   const funnels = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -76,7 +78,7 @@ export function FunnelsPage() {
             Визуальные цепочки: пользователь нажимает кнопку — получает следующий шаг.
           </p>
         </div>
-        <Button onClick={() => navigate('/keywords')} className="gap-2">
+        <Button onClick={() => setQuickCreateOpen(true)} className="gap-2">
           <Plus className="size-4" />
           Новая воронка
         </Button>
@@ -100,7 +102,7 @@ export function FunnelsPage() {
           ))}
         </div>
       ) : funnels.length === 0 ? (
-        <EmptyState onCreate={() => navigate('/keywords')} />
+        <EmptyState onCreate={() => setQuickCreateOpen(true)} />
       ) : (
         <>
           {withSteps.length > 0 && <SectionTitle icon={MessagesSquare}>С воронками</SectionTitle>}
@@ -117,6 +119,14 @@ export function FunnelsPage() {
           </div>
         </>
       )}
+
+      {/* Быстрое создание воронки: слово + сообщение, дальше — канва */}
+      <KeywordFormDialog
+        mode="quick"
+        open={quickCreateOpen}
+        onOpenChange={setQuickCreateOpen}
+        onCreated={(rule) => navigate(`/funnels/${rule._id}`)}
+      />
     </div>
   )
 }
