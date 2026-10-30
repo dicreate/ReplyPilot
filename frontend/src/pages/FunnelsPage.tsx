@@ -125,7 +125,6 @@ export function FunnelsPage() {
         mode="quick"
         open={quickCreateOpen}
         onOpenChange={setQuickCreateOpen}
-        onCreated={(rule) => navigate(`/funnels/${rule._id}`)}
       />
     </div>
   )

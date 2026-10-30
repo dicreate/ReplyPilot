@@ -182,7 +182,6 @@ export function KeywordsPage() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         editing={editing}
-        onCreated={(rule) => navigate(`/funnels/${rule._id}`)}
       />
 
       <ConfirmDialog

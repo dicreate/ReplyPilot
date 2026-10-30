@@ -227,10 +227,26 @@ export function KeywordFormDialog({
       form.reset(emptyKeywordForm)
       onOpenChange(false)
       onCreated?.(rule)
+      // В quick-режиме канва — основное продолжение: переходим сразу
+      if (quick) navigate(`/funnels/${rule._id}`)
     }
   }
 
   const navigate = useNavigate()
+
+  /**
+   * Создать и сразу открыть канву: переход делает сам диалог (по нажатой
+   * кнопке), родителю навигация не нужна.
+   */
+  const createAndOpenCanvas = () => {
+    form.handleSubmit(async (values) => {
+      const rule = await create.mutateAsync(buildPayload(values))
+      form.reset(emptyKeywordForm)
+      onOpenChange(false)
+      onCreated?.(rule)
+      navigate(`/funnels/${rule._id}`)
+    })()
+  }
 
   /** Из полной формы: сохранить правки и открыть редактор воронки на канве. */
   const openCanvas = () => {
@@ -348,9 +364,9 @@ export function KeywordFormDialog({
                     addLabel="Добавить кнопку"
                   />
                   <p className="mt-1.5 text-xs text-muted-foreground">
-                    Полная цепочка шагов собирается в{' '}
-                    <span className="font-medium text-primary">Канве воронок</span> после сохранения
-                    правила.
+                    Полную цепочку шагов собирайте в{' '}
+                    <span className="font-medium text-primary">Канве воронок</span> — после
+                    сохранения кнопкой «Собрать на канве» или позже, прямо из этой формы.
                   </p>
                 </div>
               )}
@@ -374,10 +390,22 @@ export function KeywordFormDialog({
             )}
 
             {/* Actions */}
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
                 Отмена
               </Button>
+              {!editing && !quick && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-1.5"
+                  disabled={busy}
+                  onClick={createAndOpenCanvas}
+                >
+                  <Workflow className="size-4" />
+                  Собрать на канве
+                </Button>
+              )}
               <Button type="submit" disabled={busy} className="min-w-44">
                 {busy ? (
                   <>
@@ -389,10 +417,15 @@ export function KeywordFormDialog({
                     <Save className="size-4" />
                     Сохранить изменения
                   </>
+                ) : quick ? (
+                  <>
+                    <Plus className="size-4" />
+                    Создать и открыть канву
+                  </>
                 ) : (
                   <>
                     <Plus className="size-4" />
-                    {quick ? 'Создать и открыть канву' : 'Создать правило'}
+                    Создать правило
                   </>
                 )}
               </Button>
