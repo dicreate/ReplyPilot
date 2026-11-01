@@ -17,12 +17,12 @@ GitHub Repository: [InstagramDMAutomation](https://github.com/Rushi0207/Instagra
 ---
 
 ## 🚀 Tech Stack
-- **Frontend**: React, Vite, React Router
+- **Frontend**: React 19 + TypeScript 5 (strict), Vite 6, Tailwind CSS v4, shadcn/ui, TanStack Query 5, Zustand 5, React Hook Form + Zod, React Flow (@xyflow/react) for the visual funnel editor, Recharts, framer-motion
 - **Backend**: Node.js, Express, MongoDB
 - **Database**: MongoDB
 - **Authentication**: Instagram OAuth
 - **API Integration**: Instagram Graph API
-- **Testing**: Jest, Supertest
+- **Testing**: Vitest 5 + React Testing Library + MSW v2 (frontend), Supertest (backend)
 
 ---
 
@@ -67,7 +67,7 @@ PORT=5000
 
 ### Frontend (`frontend/.env`)
 ```env
-VITE_INSTAGRAM_CLIENT_ID=your_instagram_client_id
+VITE_INSTAGRAM_APP_ID=your_instagram_app_id
 VITE_INSTAGRAM_REDIRECT_URI=http://localhost:5173/auth/instagram/callback
 VITE_BACKEND_URL=http://localhost:5000
 ```
@@ -89,6 +89,45 @@ cd frontend
 npm run dev
 ```
 Frontend runs on: `http://localhost:5173`
+
+---
+
+## 🎨 Frontend (v2) — Architecture & Scripts
+
+The frontend was rewritten to a modern typed stack (branch `feature/frontend-v2`). Backend API contract is unchanged — the visual funnel editor reads/writes the same `steps`/`buttons`/`CHECK_FOLLOW_` payloads.
+
+### Structure (FSD-lite)
+```
+frontend/src/
+  app/          # providers, router, app layout (sidebar + theme)
+  pages/        # route screens (Landing, OAuth, Dashboard, Keywords, Funnels, FunnelEditor, Analytics…)
+  features/
+    auth/       # zustand-persisted auth store, OAuth helpers
+    keywords/   # zod form schema, queries, mutations, dialog form
+    funnels/    # funnel editor: graph model, custom nodes/edges, inspector
+    media/      # manual comment processing panel + queries
+    analytics/  # analytics queries
+  components/   # shared UI (shadcn/ui primitives + InstagramIcon)
+  lib/          # axios instance, query client, env config, utils
+  store/        # UI-only zustand state
+  test/         # Vitest setup + MSW handlers
+```
+
+### Visual funnel editor
+Every keyword rule *is* a funnel. `Funnels → rule → editor` opens a React Flow canvas:
+- **Trigger node** — keyword, first DM, up to 3 buttons (URL or "next step"), post scope picker
+- **Step nodes** — follow-up messages chained by postback buttons (edges)
+- **Gate node** — "not followed" branch (dashed amber edge), removable from the inspector
+- Buttons and canvas edges stay synchronized both ways; `Save` is blocked while validation errors exist; drafts auto-persist to localStorage with a restore/discard banner.
+
+### Frontend scripts (`cd frontend`)
+```sh
+npm run dev        # dev server
+npm run build      # typecheck + production build
+npm run test       # vitest (unit tests, MSW)
+npm run lint       # eslint flat config
+npm run typecheck  # tsc --noEmit
+```
 
 ---
 

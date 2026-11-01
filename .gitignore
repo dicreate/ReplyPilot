@@ -47,3 +47,6 @@ Thumbs.db
 
 # Coverage
 coverage/
+# Local agent tooling (not part of the app)
+.opencode/
+
