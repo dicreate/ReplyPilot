@@ -1,8 +1,8 @@
-import { memo } from 'react'
-import { Handle, Position, type NodeProps } from '@xyflow/react'
+import { memo, useEffect } from 'react'
+import { Handle, Position, useUpdateNodeInternals, type NodeProps } from '@xyflow/react'
 import { ArrowRight, Link2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { GateNodeData, StepNodeData, TriggerNodeData } from './graph'
+import type { FunnelButton, GateNodeData, StepNodeData, TriggerNodeData } from './graph'
 import { sourceHandle } from './graph'
 
 const MAX_MESSAGE = 1000
@@ -71,31 +71,67 @@ export function NodeHandles({
   buttons: Array<{ id: string; title: string; type: 'url' | 'postback' }>
 }) {
   const hasPostback = buttons.some((b) => b.type === 'postback')
+  const postbacks = buttons.filter((b) => b.type === 'postback')
   return (
     <>
       {kind === 'step' ? (
-        <Handle className="rp-handle rp-handle--in" type="target" position={Position.Left} />
+        <Handle
+          className="rp-handle rp-handle--in"
+          type="target"
+          position={Position.Left}
+          role="button"
+          aria-label="вход шага"
+        />
       ) : null}
-      {buttons
-        .filter((b) => b.type === 'postback')
-        .map((b, i) => (
-          <Handle
-            key={b.id}
-            id={sourceHandle(b.id)}
-            className="rp-handle"
-            type="source"
-            position={Position.Right}
-            style={{ top: `calc(55% + ${i * 20 - (hasPostback ? 10 : 0)}px)` }}
-          />
-        ))}
+      {/* Служебный хэндл для гейт-ребра trigger → gate (edge-gate, sourceHandle 'gate-src').
+          Невидимый и неинтерактивный: соединение создаётся кнопкой «Follow-gate». */}
+      {kind === 'trigger' ? (
+        <Handle
+          id="gate-src"
+          className="rp-handle rp-handle--gate"
+          type="source"
+          position={Position.Right}
+          style={{ top: 18, right: -14 }}
+          isConnectableStart={false}
+          aria-hidden="true"
+          tabIndex={-1}
+        />
+      ) : null}
+      {postbacks.map((b, i) => (
+        <Handle
+          key={b.id}
+          id={sourceHandle(b.id)}
+          className="rp-handle"
+          type="source"
+          position={Position.Right}
+          role="button"
+          aria-label={`соединить кнопку ${b.title || 'без названия'}`}
+          style={{ top: `calc(55% + ${i * 20 - (hasPostback ? 10 : 0)}px)` }}
+        />
+      ))}
     </>
   )
 }
 
+/**
+ * Сообщает React Flow об изменении набора хэндлов ноды.
+ * Без этого кнопки, добавленные через инспектор после загрузки канвы,
+ * не регистрируются во внутренних измерениях RF — соединение от такого
+ * хэндла заканчивается ничем (рёбра появлялись только после перезагрузки).
+ */
+function useFunnelHandlesSync(nodeId: string, buttons: FunnelButton[]) {
+  const updateNodeInternals = useUpdateNodeInternals()
+  const signature = buttons.map((b) => `${b.type === 'postback' ? `out-${b.id}` : `url-${b.id}`}`).join('|')
+  useEffect(() => {
+    updateNodeInternals(nodeId)
+  }, [signature, nodeId, updateNodeInternals])
+}
+
 /* =============== Trigger =============== */
 
-export const TriggerNode = memo(({ data, selected }: NodeProps) => {
+export const TriggerNode = memo(({ id, data, selected }: NodeProps) => {
   const d = data as TriggerNodeData
+  useFunnelHandlesSync(id, d.buttons)
   const postbacks = d.buttons.filter((b) => b.type === 'postback')
   const urls = d.buttons.filter((b) => b.type === 'url')
 
@@ -136,8 +172,9 @@ TriggerNode.displayName = 'TriggerNode'
 
 /* =============== Step =============== */
 
-export const StepNode = memo(({ data, selected }: NodeProps) => {
+export const StepNode = memo(({ id, data, selected }: NodeProps) => {
   const d = data as StepNodeData
+  useFunnelHandlesSync(id, d.buttons)
   const postbacks = d.buttons.filter((b) => b.type === 'postback')
   const urls = d.buttons.filter((b) => b.type === 'url')
 
@@ -196,6 +233,15 @@ export const GateNode = memo(({ data, selected }: NodeProps) => {
       title={d.followButtonText || 'Я подписался'}
       selected={selected}
     >
+      {/* Служебный target-хэндл для гейт-ребра (edge-gate). Невидим, некликабелен. */}
+      <Handle
+        className="rp-handle rp-handle--gate"
+        type="target"
+        position={Position.Left}
+        style={{ top: 18, left: -14 }}
+        aria-hidden="true"
+        tabIndex={-1}
+      />
       <p className={cn('rp-node__message', !d.messageForNonFollowers.trim() && 'rp-node__message--empty')}>
         {d.messageForNonFollowers.trim() || 'Сообщение для неподписанных не заполнено'}
       </p>

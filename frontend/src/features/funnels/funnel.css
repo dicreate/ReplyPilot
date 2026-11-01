@@ -194,6 +194,16 @@
   left: -5px;
 }
 
+/* Служебный хэндл подписи «не подписан» (edge-gate): невидим, не тянет взаимодействия */
+.rp-handle--gate {
+  width: 6px;
+  height: 6px;
+  border-width: 0;
+  background: var(--rp-accent);
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* Edge этикетки */
 .rp-edge-label {
   font-size: 10px;
