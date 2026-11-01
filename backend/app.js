@@ -82,7 +82,7 @@ app.use(compression());
 // туннеля фронта. Если его нет в списке — браузер режет POST /api/auth/instagram
 // (в Network это выглядит как CORS/preflight error, фронт показывает
 // "Authentication failed"). Quick-туннели меняют URL при рестарте — не забудь обновить.
-const FRONTEND_TUNNEL_URL = "https://customise-jennifer-dome-gardening.trycloudflare.com";
+const FRONTEND_TUNNEL_URL = "https://certain-discount-submissions-reload.trycloudflare.com";
 const corsOptions = {
   origin:
     process.env.NODE_ENV === "production"
