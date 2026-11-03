@@ -372,16 +372,16 @@ export function KeywordFormDialog({
               )}
             </section>
 
+            <Separator />
+
+            {/* Скоуп постов — доступен и в quick-режиме (создание воронки) */}
+            <div>
+              <p className="mb-2 text-sm font-semibold">Под какими постами отслеживать</p>
+              <PostsScopePicker />
+            </div>
+
             {!quick && (
               <>
-                <Separator />
-
-                {/* Скоуп постов */}
-                <div>
-                  <p className="mb-2 text-sm font-semibold">Под какими постами отслеживать</p>
-                  <PostsScopePicker />
-                </div>
-
                 <Separator />
 
                 {/* follow-gate */}
