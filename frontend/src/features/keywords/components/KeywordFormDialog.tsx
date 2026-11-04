@@ -27,6 +27,7 @@ import { ButtonsEditor, type AvailableStep } from './ButtonsEditor'
 import { FollowGateFields } from './FollowGateFields'
 import { MessagePreviewBox } from './MessagePreviewBox'
 import { PostsScopePicker } from './PostsScopePicker'
+import { normalizeStepPayload } from '@/features/funnels/graph'
 import type { KeywordFormValues } from '../schema'
 import type { KeywordRule } from '@/types/api'
 
@@ -52,7 +53,8 @@ const ruleToFormValues = (rule: KeywordRule): KeywordFormValues => ({
     title: b.title ?? '',
     type: b.type === 'postback' ? 'postback' : 'url',
     url: b.url ?? '',
-    payload: b.payload ?? '',
+    // Легаси-payload (имя шага) → stepId: переименование шага больше не рвёт переход
+    payload: normalizeStepPayload(b.payload ?? '', rule),
   })),
   postScope: (rule.mediaIds?.length ?? 0) > 0 ? 'specific' : 'all',
   mediaIds: rule.mediaIds ?? [],
