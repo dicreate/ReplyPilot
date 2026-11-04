@@ -1,4 +1,4 @@
-import { Eye, Link2, Plus, Trash2, UserCheck, Workflow } from 'lucide-react'
+import { Eye, Link2, Loader2, Plus, Save, Trash2, UserCheck, Workflow } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -41,6 +41,10 @@ export interface NodeInspectorProps {
   onDeleteStep: (nodeId: string) => void
   onDeleteGate: () => void
   onAddStep: () => void
+  /* Сохранение всей воронки из инспектора */
+  dirty?: boolean
+  errorsCount?: number
+  onSave?: () => void | Promise<void>
 }
 
 /* ----------------------------- Утилиты ----------------------------- */
@@ -59,6 +63,50 @@ function Field({
       <Label className="text-xs text-muted-foreground">{label}</Label>
       {children}
       {hint && <p className="text-[11px] leading-snug text-muted-foreground">{hint}</p>}
+    </div>
+  )
+}
+
+/** Футер инспектора: кнопка «Сохранить», синхронизированная с хедором канвы. */
+function SaveFooter({
+  dirty = false,
+  errorsCount = 0,
+  busy = false,
+  onSave,
+}: {
+  dirty?: boolean
+  errorsCount?: number
+  busy?: boolean
+  onSave?: () => void | Promise<void>
+}) {
+  if (!onSave) return null
+  const blocked = errorsCount > 0
+  return (
+    <div className="sticky bottom-0 -mx-1 mt-1 border-t bg-background/95 px-1 pb-1 pt-3 backdrop-blur">
+      <Button
+        type="button"
+        className="w-full gap-2"
+        variant={dirty ? 'default' : 'outline'}
+        disabled={!dirty || busy || blocked}
+        onClick={() => void onSave()}
+      >
+        {busy ? (
+          <>
+            <Loader2 className="size-4 animate-spin" /> Сохранение…
+          </>
+        ) : (
+          <>
+            <Save className="size-4" /> Сохранить
+          </>
+        )}
+      </Button>
+      <p className="mt-1 text-center text-[11px] leading-snug text-muted-foreground" aria-live="polite">
+        {blocked
+          ? `Исправьте ${errorsCount} ошибок перед сохранением`
+          : dirty
+            ? 'Есть несохранённые изменения во всей воронке'
+            : 'Изменения сохранены'}
+      </p>
     </div>
   )
 }
@@ -420,6 +468,9 @@ export function NodeInspector({
   onDeleteStep,
   onDeleteGate,
   onAddStep,
+  dirty = false,
+  errorsCount = 0,
+  onSave,
 }: NodeInspectorProps) {
   if (node.type === 'trigger') {
     const d = node.data as TriggerNodeData
@@ -471,6 +522,8 @@ export function NodeInspector({
             onChange={(ids) => onChangeTrigger({ mediaIds: ids })}
           />
         </div>
+
+        <SaveFooter dirty={dirty} errorsCount={errorsCount} busy={busy} onSave={onSave} />
       </div>
     )
   }
@@ -539,6 +592,8 @@ export function NodeInspector({
         >
           <Plus className="size-4" /> Добавить следующий шаг
         </Button>
+
+        <SaveFooter dirty={dirty} errorsCount={errorsCount} busy={busy} onSave={onSave} />
       </div>
     )
   }
@@ -630,6 +685,8 @@ export function NodeInspector({
         }
         followGate
       />
+
+      <SaveFooter dirty={dirty} errorsCount={errorsCount} busy={busy} onSave={onSave} />
     </div>
   )
 }
