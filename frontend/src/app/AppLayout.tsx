@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router'
+import { useQuery } from '@tanstack/react-query'
 import { BarChart3, LogOut, Menu, MessageSquareText, Moon, Sun, Workflow } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { twMerge } from 'tailwind-merge'
@@ -8,6 +9,7 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/s
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { useAuthStore } from '@/features/auth/authStore'
+import { keywordsQueryOptions } from '@/features/keywords/keywordQueries'
 import { useUIStore } from '@/store/uiStore'
 
 const NAV_ITEMS = [
@@ -75,6 +77,55 @@ function Brand() {
   )
 }
 
+/** 1 правило / 2-4 правила / 5+ правил. */
+function rulesPlural(n: number): string {
+  const mod10 = n % 10
+  const mod100 = n % 100
+  if (mod10 === 1 && mod100 !== 11) return 'правило'
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'правила'
+  return 'правил'
+}
+
+function AutomationStatusBadge() {
+  const user = useAuthStore((s) => s.user)
+  const rulesQuery = useQuery({ ...keywordsQueryOptions(), enabled: !!user })
+
+  if (!user) return null
+
+  let variant: 'secondary' | 'outline' = 'secondary'
+  let dotClass = 'bg-emerald-500'
+  let text = 'Проверка…'
+  if (rulesQuery.isError) {
+    variant = 'outline'
+    dotClass = 'bg-muted-foreground/40'
+    text = 'Статус недоступен'
+  } else if (rulesQuery.data) {
+    const active = rulesQuery.data.filter((r) => r.isActive !== false).length
+    if (active > 0) {
+      text = `${active} ${rulesPlural(active)} · активна`
+    } else {
+      variant = 'outline'
+      dotClass = 'bg-muted-foreground/40'
+      text = 'Автоматизация выключена'
+    }
+  }
+
+  return (
+    <Badge
+      variant={variant}
+      title={
+        rulesQuery.data
+          ? 'Активные правила: слово получено → отправлено DM. Управляйте на странице Keywords.'
+          : undefined
+      }
+      className="mt-0.5 h-5 max-w-full gap-1.5 px-1.5 text-[10px]"
+    >
+      <span className={`size-1.5 shrink-0 rounded-full ${dotClass}`} aria-hidden="true" />
+      <span className="truncate">{text}</span>
+    </Badge>
+  )
+}
+
 function SidebarFooter() {
   const user = useAuthStore((s) => s.user)
   const clearAuth = useAuthStore((s) => s.clearAuth)
@@ -94,9 +145,7 @@ function SidebarFooter() {
         </span>
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">{user?.username ?? 'Instagram User'}</p>
-          <Badge variant="secondary" className="mt-0.5 h-5 px-1.5 text-[10px]">
-            Automation Active
-          </Badge>
+          <AutomationStatusBadge />
         </div>
       </div>
       <Separator />
