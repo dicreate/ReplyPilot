@@ -69,9 +69,11 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 function Brand() {
   return (
     <NavLink to="/dashboard" className="flex items-center gap-2 px-5 py-5">
-      <span className="bg-brand-gradient flex size-8 items-center justify-center rounded-xl text-lg text-white shadow-sm">
-        ✈️
-      </span>
+      <img
+        src="/apple-touch-icon.png"
+        alt="Иконка ReplyPilot"
+        className="size-8 shrink-0 rounded-xl shadow-sm"
+      />
       <span className="text-lg font-bold tracking-tight text-gradient">ReplyPilot</span>
     </NavLink>
   )
