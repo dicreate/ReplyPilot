@@ -191,6 +191,18 @@ function resolveTargetFromPayload(payload: string, rule: KeywordRule): string | 
   return found ? found.id : null
 }
 
+/**
+ * Легаси-миграция: старые правила хранили в payload кнопки ИМЯ шага — при
+ * переименовании шага ссылка рвалась. Нормализуем payload к stepId везде,
+ * где правило загружается в редактор (канва/диалог), — тогда имя шага меняется
+ * свободно, а переход остаётся. Неизвестный кастомный код (STEP_XYZ) остаётся
+ * как есть: целевой шаг не найден — заявку не портим.
+ */
+export function normalizeStepPayload(payload: string, rule: KeywordRule): string {
+  if (!payload) return ''
+  return resolveTargetFromPayload(payload, rule) ?? payload
+}
+
 function pushEdgesFromButtons(
   data: TriggerNodeData | StepNodeData,
   nodeId: string,

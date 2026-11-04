@@ -3,6 +3,7 @@ import {
   buttonIdFromHandle,
   funnelGraphToSavePayload,
   keywordToFunnelGraph,
+  normalizeStepPayload,
   sourceHandle,
   validateFunnel,
   type FunnelNode,
@@ -90,6 +91,54 @@ describe('keywordToFunnelGraph', () => {
     expect(triggerData.buttons[0].targetStepId).toBeNull()
     expect(triggerData.buttons[0].customPayload).toBe('STEP_UNKNOWN')
     expect(edges.filter((e) => e.target.startsWith('step-')).length).toBe(0)
+  })
+
+  it('легаси-payload по имени шага резолвится в targetStepId — переименование не рвёт переход', () => {
+    // Старая запись: в payload хранится имя шага, не id
+    const legacyRule: KeywordRule = {
+      ...baseRule,
+      buttons: [{ title: 'Подробнее', type: 'postback', payload: 'Что внутри' }],
+      steps: [{ id: STEP_ID, name: 'Что внутри', message: 'Внутри — 12 пунктов. Открыть?', buttons: [] }],
+    }
+    const { nodes, edges } = keywordToFunnelGraph(legacyRule)
+    expect(edges.some((e) => e.target === `step-${STEP_ID}`)).toBe(true)
+
+    // Пользователь переименовывает шаг НА КАНВЕ — граф уже держит ссылку по id
+    const stepNode = nodes.find((n) => n.id === `step-${STEP_ID}`)!
+    ;(stepNode.data as StepNodeData).name = 'Совсем другое имя'
+    const saved = funnelGraphToSavePayload(legacyRule, { nodes, edges })
+    expect(saved.steps[0].name).toBe('Совсем другое имя')
+    expect(saved.buttons[0].payload).toBe(STEP_ID)
+  })
+
+  describe('normalizeStepPayload (легаси-миграция для диалога)', () => {
+    const rule: KeywordRule = {
+      ...baseRule,
+      buttons: [],
+      steps: [{ id: STEP_ID, name: 'Что внутри', message: 'm', buttons: [] }],
+    }
+
+    it('имя шага → stepId', () => {
+      expect(normalizeStepPayload('Что внутри', rule)).toBe(STEP_ID)
+    })
+
+    it('уже stepId', () => {
+      expect(normalizeStepPayload(STEP_ID, rule)).toBe(STEP_ID)
+    })
+
+    it('формат бэка STEP_<keywordId>_<stepId>', () => {
+      expect(normalizeStepPayload(`STEP_${KEYWORD_ID}_${STEP_ID}`, rule)).toBe(STEP_ID)
+    })
+
+    it('кастомный код без совпадений остаётся как есть', () => {
+      expect(normalizeStepPayload('STEP_DETAILS', rule)).toBe('STEP_DETAILS')
+      expect(normalizeStepPayload('', rule)).toBe('')
+    })
+
+    it('после переименования шага stale-имя не сохраняется как id (ссылка рвётся честно)', () => {
+      const renamed: KeywordRule = { ...rule, steps: [{ ...(rule.steps ?? [])[0], name: 'Другое имя' }] }
+      expect(normalizeStepPayload('Что внутри', renamed)).toBe('Что внутри')
+    })
   })
 })
 
