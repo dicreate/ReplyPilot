@@ -10,13 +10,15 @@ import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { useAuthStore } from '@/features/auth/authStore'
 import { keywordsQueryOptions } from '@/features/keywords/keywordQueries'
+import { rulesPluralKey, useT } from '@/lib/i18n'
+import { useSettingsStore } from '@/store/settingsStore'
 import { useUIStore } from '@/store/uiStore'
 
 const NAV_ITEMS = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboardIcon },
-  { to: '/keywords', label: 'Keywords', icon: MessageSquareText },
-  { to: '/funnels', label: 'Funnels', icon: Workflow },
-  { to: '/analytics', label: 'Analytics', icon: BarChart3 },
+  { to: '/dashboard', key: 'nav.dashboard' as const, icon: LayoutDashboardIcon },
+  { to: '/keywords', key: 'nav.keywords' as const, icon: MessageSquareText },
+  { to: '/funnels', key: 'nav.funnels' as const, icon: Workflow },
+  { to: '/analytics', key: 'nav.analytics' as const, icon: BarChart3 },
 ] as const
 
 function LayoutDashboardIcon(props: React.ComponentProps<typeof Workflow>) {
@@ -43,9 +45,10 @@ function LayoutDashboardIcon(props: React.ComponentProps<typeof Workflow>) {
 }
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
+  const t = useT()
   return (
-    <nav aria-label="Основная навигация" className="flex flex-col gap-1 px-2">
-      {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+    <nav aria-label={t('nav.aria')} className="flex flex-col gap-1 px-2">
+      {NAV_ITEMS.map(({ to, key, icon: Icon }) => (
         <NavLink
           key={to}
           to={to}
@@ -59,7 +62,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
           }
         >
           <Icon className="size-4 shrink-0" aria-hidden="true" />
-          {label}
+          {t(key)}
         </NavLink>
       ))}
     </nav>
@@ -79,47 +82,35 @@ function Brand() {
   )
 }
 
-/** 1 правило / 2-4 правила / 5+ правил. */
-function rulesPlural(n: number): string {
-  const mod10 = n % 10
-  const mod100 = n % 100
-  if (mod10 === 1 && mod100 !== 11) return 'правило'
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'правила'
-  return 'правил'
-}
-
 function AutomationStatusBadge() {
   const user = useAuthStore((s) => s.user)
+  const t = useT()
   const rulesQuery = useQuery({ ...keywordsQueryOptions(), enabled: !!user })
 
   if (!user) return null
 
   let variant: 'secondary' | 'outline' = 'secondary'
   let dotClass = 'bg-emerald-500'
-  let text = 'Проверка…'
+  let text = t('status.checking')
   if (rulesQuery.isError) {
     variant = 'outline'
     dotClass = 'bg-muted-foreground/40'
-    text = 'Статус недоступен'
+    text = t('status.unavailable')
   } else if (rulesQuery.data) {
     const active = rulesQuery.data.filter((r) => r.isActive !== false).length
     if (active > 0) {
-      text = `${active} ${rulesPlural(active)} · активна`
+      text = `${active} ${t(rulesPluralKey(active))}`
     } else {
       variant = 'outline'
       dotClass = 'bg-muted-foreground/40'
-      text = 'Автоматизация выключена'
+      text = t('status.off')
     }
   }
 
   return (
     <Badge
       variant={variant}
-      title={
-        rulesQuery.data
-          ? 'Активные правила: слово получено → отправлено DM. Управляйте на странице Keywords.'
-          : undefined
-      }
+      title={rulesQuery.data ? t('status.hint') : undefined}
       className="mt-0.5 h-5 max-w-full gap-1.5 px-1.5 text-[10px]"
     >
       <span className={`size-1.5 shrink-0 rounded-full ${dotClass}`} aria-hidden="true" />
@@ -133,6 +124,9 @@ function SidebarFooter() {
   const clearAuth = useAuthStore((s) => s.clearAuth)
   const navigate = useNavigate()
   const { resolvedTheme, setTheme } = useTheme()
+  const t = useT()
+  const lang = useSettingsStore((s) => s.lang)
+  const setLang = useSettingsStore((s) => s.setLang)
 
   const handleLogout = () => {
     clearAuth()
@@ -146,7 +140,7 @@ function SidebarFooter() {
           {(user?.username ?? '?')[0].toUpperCase()}
         </span>
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium">{user?.username ?? 'Instagram User'}</p>
+          <p className="truncate text-sm font-medium">{user?.username ?? t('user.default')}</p>
           <AutomationStatusBadge />
         </div>
       </div>
@@ -155,21 +149,42 @@ function SidebarFooter() {
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label="Переключить тему"
-          title="Переключить тему"
+          aria-label={t('theme.toggle')}
+          title={t('theme.toggle')}
           onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
         >
           <Sun className="dark:hidden" />
           <Moon className="hidden dark:block" />
         </Button>
+        <div
+          className="ml-auto flex items-center rounded-md border p-0.5"
+          role="group"
+          aria-label={t('lang.label')}
+        >
+          {(['ru', 'en'] as const).map((l) => (
+            <button
+              key={l}
+              type="button"
+              onClick={() => setLang(l)}
+              aria-pressed={lang === l}
+              className={twMerge(
+                'rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase transition-colors',
+                lang === l ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
         <Button
           variant="ghost"
-          size="sm"
-          className="ml-auto gap-2 text-muted-foreground hover:text-destructive"
+          size="icon-sm"
+          className="ml-1 text-muted-foreground hover:text-destructive"
+          aria-label={t('auth.logoutAria')}
+          title={t('auth.logout')}
           onClick={handleLogout}
         >
           <LogOut className="size-4" />
-          Logout
         </Button>
       </div>
     </div>
