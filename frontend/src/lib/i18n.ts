@@ -29,6 +29,15 @@ const ru: Record<string, string> = {
   'user.default': 'Пользователь Instagram',
 
   'lang.label': 'Язык',
+
+  'error.title': 'Не получилось открыть приложение',
+  'error.staleHint':
+    'Похоже, у вас открыта предыдущая версия приложения. Перезагрузите страницу — загрузится актуальная версия.',
+  'error.genericHint':
+    'Произошла непредвиденная ошибка. Перезагрузите страницу — если не поможет, попробуйте «Домой».',
+  'error.reload': 'Перезагрузить',
+  'error.home': 'Домой',
+  'error.details': 'Техническая информация',
 }
 
 const en: Record<string, string> = {
@@ -52,6 +61,15 @@ const en: Record<string, string> = {
   'user.default': 'Instagram User',
 
   'lang.label': 'Language',
+
+  'error.title': 'The app failed to load',
+  'error.staleHint':
+    'It looks like you have a previous version of the app open. Reload the page to get the current version.',
+  'error.genericHint':
+    'An unexpected error occurred. Reload the page — if that does not help, try “Home”.',
+  'error.reload': 'Reload',
+  'error.home': 'Home',
+  'error.details': 'Technical details',
 }
 
 const messages: Record<Lang, Record<string, string>> = { ru, en }
