@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
 import {
@@ -31,6 +32,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { toast } from 'sonner'
+import { explainDmError } from '@/features/history/dmErrorExplain'
 import { mediaKeys, processMedia, processingHistoryOptions, recentMediaOptions } from './mediaQueries'
 import type { HistoryItem, ProcessResult } from '@/types/api'
 
@@ -431,9 +433,7 @@ function HistoryTable({ history, loading }: { history: HistoryItem[]; loading: b
                 {item.dmSent ? (
                   <CheckCircle2 className="size-4 text-chart-2" aria-label="Отправлено" />
                 ) : item.errorMessage ? (
-                  <Badge variant="destructive" title={item.errorMessage} className="gap-1">
-                    <Ban className="size-3" /> ошибка
-                  </Badge>
+                  <DmErrorCell item={item} />
                 ) : (
                   <span className="text-muted-foreground">—</span>
                 )}
@@ -443,6 +443,73 @@ function HistoryTable({ history, loading }: { history: HistoryItem[]; loading: b
         </TableBody>
       </Table>
     </div>
+  )
+}
+
+/** Кнопка «ошибка» → поповер: человеческое объяснение + рекомендация + тех. текст. */
+function DmErrorCell({ item }: { item: HistoryItem }) {
+  const explanation = explainDmError(item.errorMessage)
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Badge
+          variant="destructive"
+          className="cursor-pointer gap-1"
+          aria-haspopup="dialog"
+          title="Что за ошибка?"
+        >
+          <Ban className="size-3" /> ошибка
+          <CircleAlert className="size-3 opacity-70" />
+        </Badge>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80 space-y-3">
+        <div className="space-y-1">
+          <p className="text-sm font-semibold leading-snug">{explanation.title}</p>
+          <p className="text-xs leading-relaxed text-muted-foreground">{explanation.advice}</p>
+        </div>
+
+        <div className="space-y-1 rounded-lg bg-muted/50 p-2.5 text-xs">
+          <p className="truncate">
+            <span className="text-muted-foreground">Автор:</span> @{item.commentAuthor}
+          </p>
+          <p className="line-clamp-2">
+            <span className="text-muted-foreground">Комментарий:</span> {item.commentText.slice(0, 140)}
+            {item.commentText.length > 140 ? '…' : ''}
+          </p>
+          {item.keywordMatched && (
+            <p>
+              <span className="text-muted-foreground">Ключевое слово:</span>{' '}
+              <span className="font-mono">{item.keywordMatched}</span>
+            </p>
+          )}
+          <p>
+            <span className="text-muted-foreground">Время:</span>{' '}
+            {new Date(item.processedAt).toLocaleString()}
+          </p>
+        </div>
+
+        <div className="space-y-1">
+          <p className="text-[11px] font-medium text-muted-foreground">Технический текст ошибки:</p>
+          <code className="block max-h-28 overflow-y-auto rounded-md bg-muted/50 px-2 py-1.5 text-[10px] leading-relaxed break-words">
+            {item.errorMessage}
+          </code>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-6 gap-1 px-2 text-[10px]"
+            onClick={() => {
+              navigator.clipboard
+                .writeText(item.errorMessage ?? '')
+                .then(() => toast.success('Текст ошибки скопирован'))
+                .catch(() => toast.error('Не удалось скопировать'))
+            }}
+          >
+            Копировать текст ошибки
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
   )
 }
 
