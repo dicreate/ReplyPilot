@@ -490,6 +490,9 @@ function FunnelEditorInner() {
       placeholders={placeholders ?? {}}
       media={media}
       busy={update.isPending}
+      dirty={dirty}
+      errorsCount={saveErrorCount}
+      onSave={onSave}
       onChangeTrigger={onChangeTrigger}
       onChangeStep={(patch) => patchNode(selectedNode.id, patch)}
       onChangeGate={onChangeGate}

@@ -380,14 +380,10 @@ export function KeywordFormDialog({
               <PostsScopePicker />
             </div>
 
-            {!quick && (
-              <>
-                <Separator />
-
-                {/* follow-gate */}
-                <FollowGateFields />
-              </>
-            )}
+            {/* follow-gate — доступен и в quick-режиме (создание воронки),
+                чтобы «сообщение для неподписанных» задавалось сразу при создании */}
+            <Separator />
+            <FollowGateFields />
 
             {/* Actions */}
             <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
