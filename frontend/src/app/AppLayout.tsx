@@ -149,6 +149,7 @@ function SidebarFooter() {
         <Button
           variant="ghost"
           size="icon-sm"
+          className="size-11 md:size-8"
           aria-label={t('theme.toggle')}
           title={t('theme.toggle')}
           onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
@@ -168,7 +169,7 @@ function SidebarFooter() {
               onClick={() => setLang(l)}
               aria-pressed={lang === l}
               className={twMerge(
-                'rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase transition-colors',
+                'rounded px-3 py-2 text-xs font-semibold uppercase transition-colors md:px-1.5 md:py-0.5 md:text-[10px]',
                 lang === l ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:text-foreground',
               )}
             >
@@ -179,7 +180,7 @@ function SidebarFooter() {
         <Button
           variant="ghost"
           size="icon-sm"
-          className="ml-1 text-muted-foreground hover:text-destructive"
+          className="ml-1 size-11 text-muted-foreground hover:text-destructive md:size-8"
           aria-label={t('auth.logoutAria')}
           title={t('auth.logout')}
           onClick={handleLogout}
